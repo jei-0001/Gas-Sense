@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_dark"
+    android:gravity="center_horizontal"
+    android:paddingHorizontal="24dp">
+
+    <!-- Red glow animated background -->
+    <FrameLayout
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_marginTop="64dp"
+        android:layout_gravity="center_horizontal">
+
+        <!-- Glow rings -->
+        <View
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:background="@drawable/shape_alert_glow_outer"
+            android:backgroundTint="@color/critical_red_glow"
+            android:layout_gravity="center" />
+
+        <View
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:background="@drawable/shape_alert_glow_outer"
+            android:backgroundTint="#EF444430"
+            android:layout_gravity="center" />
+
+        <!-- Icon circle -->
+        <FrameLayout
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="@drawable/shape_alert_glow_outer"
+            android:backgroundTint="@color/critical_red_dim"
+            android:layout_gravity="center">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_warning_circle"
+                app:tint="@color/critical_red" />
+        </FrameLayout>
+    </FrameLayout>
+
+    <!-- CRITICAL ALERT Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/critical_alert_title"
+        android:textColor="@color/critical_red"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.05"
+        android:layout_marginTop="24dp" />
+
+    <!-- Description -->
+    <TextView
+        android:id="@+id/tvAlertDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/critical_alert_desc"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Sensor Readings Card -->
+    <com.google.android.material.card.MaterialCardView
+        style="@style/GasSense.Card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Gas Concentration -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_gas"
+                    app:tint="@color/gas_icon_color" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Gas Concentration"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginStart="10dp" />
+
+                <TextView
+                    android:id="@+id/tvGasReading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="28.4 %LEL"
+                    android:textColor="@color/critical_red"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="@color/divider_color" />
+
+            <!-- Cylinder Pressure -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_pressure"
+                    app:tint="@color/pressure_icon_color" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Cylinder Pressure"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginStart="10dp" />
+
+                <TextView
+                    android:id="@+id/tvPressureReading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="98 PSI"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="@color/divider_color" />
+
+            <!-- Temperature -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_thermometer"
+                    app:tint="@color/temp_icon_color" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Temperature"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginStart="10dp" />
+
+                <TextView
+                    android:id="@+id/tvTempReading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="31.2 °C"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="@color/divider_color" />
+
+            <!-- Humidity -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_humidity"
+                    app:tint="@color/humidity_icon_color" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Humidity"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginStart="10dp" />
+
+                <TextView
+                    android:id="@+id/tvHumidityReading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="72 %"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- AutoShutoff Status Banner -->
+    <LinearLayout
+        android:id="@+id/bannerAutoShutoff"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_shutoff_banner"
+        android:layout_marginTop="12dp"
+        android:padding="14dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_valve"
+            app:tint="@color/critical_red" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="10dp">
+
+            <TextView
+                android:id="@+id/tvShutoffStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/valve_closed"
+                android:textColor="@color/critical_red"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvShutoffDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/valve_closed_desc"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Spacer -->
+    <View android:layout_width="0dp" android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="32dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnViewDetails"
+            style="@style/GasSense.Button.Outlined"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/button_height"
+            android:layout_weight="1"
+            android:text="@string/btn_view_details"
+            app:strokeColor="@color/critical_red"
+            android:textColor="@color/critical_red"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAcknowledge"
+            style="@style/GasSense.Button.Critical"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/button_height"
+            android:layout_weight="1"
+            android:text="@string/btn_acknowledge"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+</LinearLayout>
