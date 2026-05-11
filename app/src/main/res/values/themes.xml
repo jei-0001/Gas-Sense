@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base Gas Sense Theme — Material Design 3 Dark -->
+    <style name="Theme.GasSense" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/md_theme_dark_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_dark_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_dark_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_dark_onPrimaryContainer</item>
+        <item name="colorSecondary">@color/md_theme_dark_secondary</item>
+        <item name="colorOnSecondary">@color/md_theme_dark_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/md_theme_dark_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/md_theme_dark_onSecondaryContainer</item>
+        <item name="colorTertiary">@color/md_theme_dark_tertiary</item>
+        <item name="colorOnTertiary">@color/md_theme_dark_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/md_theme_dark_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/md_theme_dark_onTertiaryContainer</item>
+        <item name="colorError">@color/md_theme_dark_error</item>
+        <item name="colorErrorContainer">@color/md_theme_dark_errorContainer</item>
+        <item name="colorOnError">@color/md_theme_dark_onError</item>
+        <item name="colorOnErrorContainer">@color/md_theme_dark_onErrorContainer</item>
+        <item name="android:colorBackground">@color/md_theme_dark_background</item>
+        <item name="colorOnBackground">@color/md_theme_dark_onBackground</item>
+        <item name="colorSurface">@color/md_theme_dark_surface</item>
+        <item name="colorOnSurface">@color/md_theme_dark_onSurface</item>
+        <item name="colorSurfaceVariant">@color/md_theme_dark_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/md_theme_dark_onSurfaceVariant</item>
+        <item name="colorOutline">@color/md_theme_dark_outline</item>
+        <item name="colorOnSurfaceInverse">@color/md_theme_dark_inverseOnSurface</item>
+        <item name="colorSurfaceInverse">@color/md_theme_dark_inverseSurface</item>
+        <item name="colorPrimaryInverse">@color/md_theme_dark_inversePrimary</item>
+        <item name="android:statusBarColor">@color/bg_dark</item>
+        <item name="android:navigationBarColor">@color/nav_bar_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <!-- Splash Screen Theme -->
+    <style name="Theme.GasSense.Splash" parent="Theme.GasSense">
+        <item name="android:windowBackground">@color/bg_dark</item>
+    </style>
+
+    <!-- Full Screen Dialog Theme for Alert Popups -->
+    <style name="Theme.GasSense.FullScreenDialog" parent="Theme.GasSense">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+
+    <!-- Widget Styles -->
+    <style name="GasSense.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">8dp</item>
+        <item name="boxCornerRadiusTopEnd">8dp</item>
+        <item name="boxCornerRadiusBottomStart">8dp</item>
+        <item name="boxCornerRadiusBottomEnd">8dp</item>
+        <item name="boxStrokeColor">@color/outline_color</item>
+        <item name="hintTextColor">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+        <item name="boxBackgroundColor">#0F2035</item>
+    </style>
+
+    <style name="GasSense.Button.Primary" parent="Widget.Material3.Button">
+        <item name="cornerRadius">20dp</item>
+        <item name="backgroundTint">@color/primary_navy</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:minHeight">52dp</item>
+    </style>
+
+    <style name="GasSense.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">20dp</item>
+        <item name="strokeColor">@color/outline_color</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:minHeight">52dp</item>
+    </style>
+
+    <style name="GasSense.Button.Critical" parent="Widget.Material3.Button">
+        <item name="cornerRadius">20dp</item>
+        <item name="backgroundTint">@color/critical_red</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:minHeight">52dp</item>
+    </style>
+
+    <style name="GasSense.Button.Warning" parent="Widget.Material3.Button">
+        <item name="cornerRadius">20dp</item>
+        <item name="backgroundTint">@color/warning_yellow</item>
+        <item name="android:textColor">#0A1628</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:minHeight">52dp</item>
+    </style>
+
+    <style name="GasSense.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardBackgroundColor">@color/card_dark</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/divider_color</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="SectionHeader" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
+</resources>

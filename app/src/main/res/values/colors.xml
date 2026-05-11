@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Background Colors -->
+    <color name="bg_dark">#0A1628</color>
+    <color name="card_dark">#0F2035</color>
+    <color name="card_medium">#152644</color>
+    <color name="surface_dark">#112030</color>
+
+    <!-- Primary Colors -->
+    <color name="primary_navy">#1E3A5F</color>
+    <color name="primary_navy_light">#2A4F80</color>
+    <color name="primary_navy_dark">#152C4A</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <!-- Status Colors -->
+    <color name="safe_green">#22C55E</color>
+    <color name="safe_green_dim">#1A4A2E</color>
+    <color name="safe_green_glow">#22C55E40</color>
+    <color name="warning_yellow">#EAB308</color>
+    <color name="warning_yellow_dim">#4A3A08</color>
+    <color name="warning_yellow_glow">#EAB30840</color>
+    <color name="critical_red">#EF4444</color>
+    <color name="critical_red_dim">#4A1A1A</color>
+    <color name="critical_red_glow">#EF444440</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_hint">#64748B</color>
+    <color name="text_on_dark">#CBD5E1</color>
+
+    <!-- Input / Border Colors -->
+    <color name="outline_color">#2A4F80</color>
+    <color name="outline_focused">#3B82F6</color>
+    <color name="divider_color">#1E3A5F</color>
+
+    <!-- Sensor Card Colors -->
+    <color name="gas_icon_color">#60A5FA</color>
+    <color name="pressure_icon_color">#A78BFA</color>
+    <color name="temp_icon_color">#F97316</color>
+    <color name="humidity_icon_color">#34D399</color>
+
+    <!-- Navigation Bar -->
+    <color name="nav_bar_bg">#0D1B2E</color>
+    <color name="nav_selected">#3B82F6</color>
+    <color name="nav_unselected">#64748B</color>
+
+    <!-- Google Button -->
+    <color name="google_btn_border">#2A4F80</color>
+    <color name="google_btn_bg">#0F2035</color>
+
+    <!-- Material You Theme Colors -->
+    <color name="md_theme_dark_primary">#4A90D9</color>
+    <color name="md_theme_dark_onPrimary">#FFFFFF</color>
+    <color name="md_theme_dark_primaryContainer">#1E3A5F</color>
+    <color name="md_theme_dark_onPrimaryContainer">#D1E4FF</color>
+    <color name="md_theme_dark_secondary">#94A3B8</color>
+    <color name="md_theme_dark_onSecondary">#FFFFFF</color>
+    <color name="md_theme_dark_secondaryContainer">#152644</color>
+    <color name="md_theme_dark_onSecondaryContainer">#CBD5E1</color>
+    <color name="md_theme_dark_tertiary">#22C55E</color>
+    <color name="md_theme_dark_onTertiary">#FFFFFF</color>
+    <color name="md_theme_dark_tertiaryContainer">#1A4A2E</color>
+    <color name="md_theme_dark_onTertiaryContainer">#BBFFD7</color>
+    <color name="md_theme_dark_error">#EF4444</color>
+    <color name="md_theme_dark_errorContainer">#4A1A1A</color>
+    <color name="md_theme_dark_onError">#FFFFFF</color>
+    <color name="md_theme_dark_onErrorContainer">#FFDAD6</color>
+    <color name="md_theme_dark_background">#0A1628</color>
+    <color name="md_theme_dark_onBackground">#E2E8F0</color>
+    <color name="md_theme_dark_surface">#0F2035</color>
+    <color name="md_theme_dark_onSurface">#E2E8F0</color>
+    <color name="md_theme_dark_surfaceVariant">#152644</color>
+    <color name="md_theme_dark_onSurfaceVariant">#94A3B8</color>
+    <color name="md_theme_dark_outline">#2A4F80</color>
+    <color name="md_theme_dark_inverseOnSurface">#0A1628</color>
+    <color name="md_theme_dark_inverseSurface">#E2E8F0</color>
+    <color name="md_theme_dark_inversePrimary">#1E3A5F</color>
+    <color name="md_theme_dark_surfaceTint">#4A90D9</color>
+    <color name="md_theme_dark_outlineVariant">#1E3A5F</color>
+    <color name="md_theme_dark_scrim">#000000</color>
+</resources>
