@@ -2,6 +2,7 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark">
@@ -15,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/bg_dark"
-            app:title="Settings"
+            app:title="@string/settings_title"
             app:titleTextColor="@color/text_primary" />
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -37,12 +38,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="MY DEVICES"
+                android:text="@string/section_my_devices_caps"
                 android:textColor="#63B3ED"
                 android:textSize="11sp"
                 android:letterSpacing="0.1"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="8dp"
+                tools:ignore="SmallSp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardMyDevices"
@@ -56,7 +58,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:padding="16dp">
+                    android:padding="16dp"
+                    android:baselineAligned="false">
                     <FrameLayout
                         android:layout_width="40dp"
                         android:layout_height="40dp"
@@ -67,7 +70,8 @@
                             android:layout_height="22dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_device"
-                            app:tint="#63B3ED" />
+                            app:tint="#63B3ED"
+                            android:contentDescription="@null" />
                     </FrameLayout>
                     <LinearLayout
                         android:layout_width="0dp"
@@ -78,14 +82,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Device Management"
+                            android:text="@string/device_management"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="2 devices linked"
+                            android:text="@string/devices_linked_count"
                             android:textColor="@color/text_hint"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -93,7 +97,8 @@
                         android:layout_width="18dp"
                         android:layout_height="18dp"
                         android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/text_hint" />
+                        app:tint="@color/text_hint"
+                        android:contentDescription="@null" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -108,7 +113,8 @@
                 android:paddingEnd="14dp"
                 android:paddingTop="10dp"
                 android:paddingBottom="10dp"
-                android:layout_marginTop="10dp">
+                android:layout_marginTop="10dp"
+                android:baselineAligned="false">
                 <View
                     android:layout_width="8dp"
                     android:layout_height="8dp"
@@ -117,7 +123,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Current Device: "
+                    android:text="@string/current_device_label"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:layout_marginStart="8dp" />
@@ -125,7 +131,7 @@
                     android:id="@+id/tvCurrentDevice"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Kitchen Tank"
+                    android:text="@string/kitchen_tank"
                     android:textColor="#63B3ED"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -135,12 +141,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="ALERT THRESHOLDS"
+                android:text="@string/section_alert_thresholds_caps"
                 android:textColor="#63B3ED"
                 android:textSize="11sp"
                 android:letterSpacing="0.1"
                 android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="8dp"
+                tools:ignore="SmallSp" />
 
             <!-- Info banner -->
             <LinearLayout
@@ -153,20 +160,23 @@
                 android:paddingEnd="12dp"
                 android:paddingTop="10dp"
                 android:paddingBottom="10dp"
-                android:layout_marginBottom="10dp">
+                android:layout_marginBottom="10dp"
+                android:baselineAligned="false">
                 <ImageView
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:src="@drawable/ic_shield_check"
-                    app:tint="#A78BFA" />
+                    app:tint="#A78BFA"
+                    android:contentDescription="@null" />
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Thresholds are bounded by developer safety limits. Warning must be lower than Critical."
+                    android:text="@string/threshold_safety_info"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
                     android:layout_marginStart="8dp"
-                    android:lineSpacingExtra="2dp" />
+                    android:lineSpacingExtra="2dp"
+                    tools:ignore="SmallSp" />
             </LinearLayout>
 
             <!-- GAS threshold card -->
@@ -185,7 +195,8 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
+                        android:layout_marginBottom="12dp"
+                        android:baselineAligned="false">
                         <FrameLayout
                             android:layout_width="30dp"
                             android:layout_height="30dp"
@@ -196,13 +207,14 @@
                                 android:layout_height="16dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_gas"
-                                app:tint="@color/gas_icon_color" />
+                                app:tint="@color/gas_icon_color"
+                                android:contentDescription="@null" />
                         </FrameLayout>
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Gas Concentration"
+                            android:text="@string/gas_concentration"
                             android:textColor="@color/text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold"
@@ -210,14 +222,16 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="%LEL"
+                            android:text="@string/pct_lel"
                             android:textColor="@color/text_hint"
-                            android:textSize="11sp" />
+                            android:textSize="11sp"
+                            tools:ignore="SmallSp" />
                     </LinearLayout>
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -227,10 +241,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="WARNING"
+                                android:text="@string/warning_caps"
                                 android:textColor="@color/warning_yellow"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -239,7 +254,7 @@
                                     android:id="@+id/etGasWarning"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="10"
+                                    android:text="@string/default_gas_warn"
                                     android:inputType="number"
                                     android:textColor="@color/warning_yellow"
                                     android:gravity="center" />
@@ -253,10 +268,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CRITICAL"
+                                android:text="@string/critical_caps"
                                 android:textColor="@color/critical_red"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -265,7 +281,7 @@
                                     android:id="@+id/etGasCritical"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="25"
+                                    android:text="@string/default_gas_crit"
                                     android:inputType="number"
                                     android:textColor="@color/critical_red"
                                     android:gravity="center" />
@@ -275,10 +291,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dev limits: 5 – 50 %LEL"
+                        android:text="@string/gas_dev_limits"
                         android:textColor="@color/text_hint"
-                        android:textSize="10sp"
-                        android:layout_marginTop="6dp" />
+                        android:textSize="11sp"
+                        android:layout_marginTop="6dp"
+                        tools:ignore="SmallSp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -298,7 +315,8 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
+                        android:layout_marginBottom="12dp"
+                        android:baselineAligned="false">
                         <FrameLayout
                             android:layout_width="30dp"
                             android:layout_height="30dp"
@@ -309,13 +327,14 @@
                                 android:layout_height="16dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_pressure"
-                                app:tint="@color/pressure_icon_color" />
+                                app:tint="@color/pressure_icon_color"
+                                android:contentDescription="@null" />
                         </FrameLayout>
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Pressure"
+                            android:text="@string/pressure_label"
                             android:textColor="@color/text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold"
@@ -323,14 +342,16 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="PSI"
+                            android:text="@string/unit_psi"
                             android:textColor="@color/text_hint"
-                            android:textSize="11sp" />
+                            android:textSize="11sp"
+                            tools:ignore="SmallSp" />
                     </LinearLayout>
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -340,10 +361,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="WARNING"
+                                android:text="@string/warning_caps"
                                 android:textColor="@color/warning_yellow"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -352,7 +374,7 @@
                                     android:id="@+id/etPressureWarning"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="100"
+                                    android:text="@string/default_press_warn"
                                     android:inputType="number"
                                     android:textColor="@color/warning_yellow"
                                     android:gravity="center" />
@@ -366,10 +388,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CRITICAL"
+                                android:text="@string/critical_caps"
                                 android:textColor="@color/critical_red"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -378,7 +401,7 @@
                                     android:id="@+id/etPressureCritical"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="120"
+                                    android:text="@string/default_press_crit"
                                     android:inputType="number"
                                     android:textColor="@color/critical_red"
                                     android:gravity="center" />
@@ -388,10 +411,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dev limits: 50 – 150 PSI"
+                        android:text="@string/pressure_dev_limits"
                         android:textColor="@color/text_hint"
-                        android:textSize="10sp"
-                        android:layout_marginTop="6dp" />
+                        android:textSize="11sp"
+                        android:layout_marginTop="6dp"
+                        tools:ignore="SmallSp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -411,7 +435,8 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
+                        android:layout_marginBottom="12dp"
+                        android:baselineAligned="false">
                         <FrameLayout
                             android:layout_width="30dp"
                             android:layout_height="30dp"
@@ -422,13 +447,14 @@
                                 android:layout_height="16dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_thermometer"
-                                app:tint="@color/temp_icon_color" />
+                                app:tint="@color/temp_icon_color"
+                                android:contentDescription="@null" />
                         </FrameLayout>
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Temperature"
+                            android:text="@string/temp_label"
                             android:textColor="@color/text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold"
@@ -436,14 +462,16 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="°C"
+                            android:text="@string/unit_celsius"
                             android:textColor="@color/text_hint"
-                            android:textSize="11sp" />
+                            android:textSize="11sp"
+                            tools:ignore="SmallSp" />
                     </LinearLayout>
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -453,10 +481,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="WARNING"
+                                android:text="@string/warning_caps"
                                 android:textColor="@color/warning_yellow"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -465,7 +494,7 @@
                                     android:id="@+id/etTempWarning"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="40"
+                                    android:text="@string/default_temp_warn"
                                     android:inputType="numberSigned"
                                     android:textColor="@color/warning_yellow"
                                     android:gravity="center" />
@@ -479,10 +508,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CRITICAL"
+                                android:text="@string/critical_caps"
                                 android:textColor="@color/critical_red"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -491,7 +521,7 @@
                                     android:id="@+id/etTempCritical"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="60"
+                                    android:text="@string/default_temp_crit"
                                     android:inputType="numberSigned"
                                     android:textColor="@color/critical_red"
                                     android:gravity="center" />
@@ -501,10 +531,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dev limits: 0 – 80 °C"
+                        android:text="@string/temp_dev_limits"
                         android:textColor="@color/text_hint"
-                        android:textSize="10sp"
-                        android:layout_marginTop="6dp" />
+                        android:textSize="11sp"
+                        android:layout_marginTop="6dp"
+                        tools:ignore="SmallSp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -524,7 +555,8 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
+                        android:layout_marginBottom="12dp"
+                        android:baselineAligned="false">
                         <FrameLayout
                             android:layout_width="30dp"
                             android:layout_height="30dp"
@@ -535,13 +567,14 @@
                                 android:layout_height="16dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_humidity"
-                                app:tint="@color/humidity_icon_color" />
+                                app:tint="@color/humidity_icon_color"
+                                android:contentDescription="@null" />
                         </FrameLayout>
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Humidity"
+                            android:text="@string/humidity_label"
                             android:textColor="@color/text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold"
@@ -549,14 +582,16 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="%"
+                            android:text="@string/unit_percent"
                             android:textColor="@color/text_hint"
-                            android:textSize="11sp" />
+                            android:textSize="11sp"
+                            tools:ignore="SmallSp" />
                     </LinearLayout>
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -566,10 +601,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="WARNING"
+                                android:text="@string/warning_caps"
                                 android:textColor="@color/warning_yellow"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -578,7 +614,7 @@
                                     android:id="@+id/etHumidityWarning"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="80"
+                                    android:text="@string/default_hum_warn"
                                     android:inputType="number"
                                     android:textColor="@color/warning_yellow"
                                     android:gravity="center" />
@@ -592,10 +628,11 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CRITICAL"
+                                android:text="@string/critical_caps"
                                 android:textColor="@color/critical_red"
-                                android:textSize="10sp"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="11sp"
+                                android:layout_marginBottom="4dp"
+                                tools:ignore="SmallSp" />
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/GasSense.TextInputLayout"
                                 android:layout_width="match_parent"
@@ -604,7 +641,7 @@
                                     android:id="@+id/etHumidityCritical"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:text="90"
+                                    android:text="@string/default_hum_crit"
                                     android:inputType="number"
                                     android:textColor="@color/critical_red"
                                     android:gravity="center" />
@@ -614,10 +651,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dev limits: 0 – 100 %"
+                        android:text="@string/hum_dev_limits"
                         android:textColor="@color/text_hint"
-                        android:textSize="10sp"
-                        android:layout_marginTop="6dp" />
+                        android:textSize="11sp"
+                        android:layout_marginTop="6dp"
+                        tools:ignore="SmallSp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -626,13 +664,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
+                android:layout_marginBottom="8dp"
+                android:baselineAligned="false">
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnApplyThresholds"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="2"
-                    android:text="Apply Thresholds"
+                    android:text="@string/apply_thresholds"
                     android:textSize="13sp"
                     app:cornerRadius="10dp"
                     android:backgroundTint="@color/primary_navy"
@@ -642,7 +681,7 @@
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:text="Reset"
+                    android:text="@string/reset"
                     android:textSize="13sp"
                     app:cornerRadius="10dp"
                     style="Widget.Material3.Button.OutlinedButton"
@@ -654,12 +693,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="AUTO SHUTOFF"
+                android:text="@string/section_autoshutoff_caps"
                 android:textColor="#63B3ED"
                 android:textSize="11sp"
                 android:letterSpacing="0.1"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="8dp"
+                tools:ignore="SmallSp" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/GasSense.Card"
@@ -670,7 +710,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:padding="16dp">
+                    android:padding="16dp"
+                    android:baselineAligned="false">
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -679,14 +720,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Auto Shutoff Valve"
+                            android:text="@string/autoshutoff_valve"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Close valve when reading exceeds Critical"
+                            android:text="@string/autoshutoff_desc_detailed"
                             android:textColor="@color/text_hint"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -702,12 +743,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="NOTIFICATIONS"
+                android:text="@string/section_notifications_caps"
                 android:textColor="#63B3ED"
                 android:textSize="11sp"
                 android:letterSpacing="0.1"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="8dp"
+                tools:ignore="SmallSp" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/GasSense.Card"
@@ -722,12 +764,13 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:padding="16dp">
+                        android:padding="16dp"
+                        android:baselineAligned="false">
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Push Notifications"
+                            android:text="@string/push_notifications"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp" />
                         <com.google.android.material.materialswitch.MaterialSwitch
@@ -745,12 +788,13 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:padding="16dp">
+                        android:padding="16dp"
+                        android:baselineAligned="false">
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="SMS Alerts"
+                            android:text="@string/sms_notifications"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp" />
                         <com.google.android.material.materialswitch.MaterialSwitch
@@ -766,12 +810,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SMS RECIPIENT"
+                android:text="@string/section_sms_recipient_caps"
                 android:textColor="#63B3ED"
                 android:textSize="11sp"
                 android:letterSpacing="0.1"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="8dp"
+                tools:ignore="SmallSp" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/GasSense.Card"
@@ -786,17 +831,29 @@
                         style="@style/GasSense.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Phone Number">
+                        android:hint="@string/sms_recipient_label">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etSmsNumber"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="phone"
                             android:textColor="@color/text_primary"
-                            android:hint="+1 555 0123" />
+                            android:hint="@string/sms_number_hint" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- LOGOUT -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnLogout"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/log_out"
+                android:textColor="@color/critical_red"
+                android:layout_marginTop="24dp"
+                app:icon="@drawable/ic_logout"
+                app:iconTint="@color/critical_red" />
 
             <Space
                 android:layout_width="0dp"

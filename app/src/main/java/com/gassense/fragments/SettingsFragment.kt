@@ -1,22 +1,27 @@
 package com.gassense.fragments
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.gassense.R
+import com.gassense.activities.AuthActivity
 import com.gassense.databinding.FragmentSettingsBinding
 import com.gassense.models.AppThresholds
 import com.gassense.models.SensorThreshold
 import com.gassense.utils.ThresholdManager
+import com.gassense.viewmodels.AuthViewModel
 
 class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+    private val authViewModel: AuthViewModel by activityViewModels()
 
     private lateinit var currentThresholds: AppThresholds
     private val dev = AppThresholds.DEV_DEFAULTS
@@ -55,6 +60,21 @@ class SettingsFragment : Fragment() {
                 if (isChecked) "AutoShutoff enabled" else "AutoShutoff disabled",
                 Toast.LENGTH_SHORT
             ).show()
+        }
+
+        binding.btnLogout.setOnClickListener {
+            performLogout()
+        }
+    }
+
+    private fun performLogout() {
+        authViewModel.logout()
+        ThresholdManager.resetToDefaults(requireContext())
+        requireActivity().apply {
+            startActivity(Intent(this, AuthActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            finish()
         }
     }
 

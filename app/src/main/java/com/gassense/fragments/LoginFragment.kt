@@ -6,15 +6,24 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.gassense.R
 import com.gassense.activities.MainActivity
 import com.gassense.databinding.FragmentLoginBinding
+import com.gassense.viewmodels.AuthState
+import com.gassense.viewmodels.AuthViewModel
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.launch
 
 class LoginFragment : Fragment() {
 
     private var _binding: FragmentLoginBinding? = null
     private val binding get() = _binding!!
+    private val viewModel: AuthViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLoginBinding.inflate(inflater, container, false)
@@ -24,9 +33,17 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.authState.collect { state ->
+                    handleAuthState(state)
+                }
+            }
+        }
+
         binding.btnLogin.setOnClickListener {
-            val email = binding.etEmail.text.toString()
-            val password = binding.etPassword.text.toString()
+            val email = binding.etEmail.text.toString().trim()
+            val password = binding.etPassword.text.toString().trim()
 
             if (email.isEmpty()) {
                 binding.tilEmail.error = "Email is required"
@@ -39,16 +56,7 @@ class LoginFragment : Fragment() {
             binding.tilEmail.error = null
             binding.tilPassword.error = null
 
-            // Hardcoded admin account for testing
-            if (email == "admin@gassense.com" && password == "admin123") {
-                requireActivity().apply {
-                    startActivity(Intent(this, MainActivity::class.java))
-                    finish()
-                }
-            } else {
-                binding.tilEmail.error = "Invalid credentials"
-                binding.tilPassword.error = "Invalid credentials"
-            }
+            viewModel.login(email, password)
         }
 
         binding.tvForgotPassword.setOnClickListener {
@@ -61,6 +69,31 @@ class LoginFragment : Fragment() {
 
         binding.btnGoogle.setOnClickListener {
             // Google Sign-In would be initialized here
+        }
+    }
+
+    private fun handleAuthState(state: AuthState) {
+        when (state) {
+            is AuthState.Loading -> {
+                binding.btnLogin.isEnabled = false
+            }
+            is AuthState.Authenticated -> {
+                requireActivity().apply {
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
+                }
+            }
+            is AuthState.Error -> {
+                binding.btnLogin.isEnabled = true
+                if (state.isFieldSpecific) {
+                    binding.tilEmail.error = state.message
+                } else {
+                    Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG).show()
+                }
+            }
+            else -> {
+                binding.btnLogin.isEnabled = true
+            }
         }
     }
 

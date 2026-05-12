@@ -1,0 +1,126 @@
+package com.gassense.viewmodels
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
+sealed class AuthState {
+    object Idle : AuthState()
+    object Loading : AuthState()
+    object Authenticated : AuthState()
+    object Unauthenticated : AuthState()
+    data class Error(val message: String, val isFieldSpecific: Boolean = false) : AuthState()
+}
+
+class AuthViewModel : ViewModel() {
+
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    private val _scannedDeviceId = MutableStateFlow<String?>(null)
+    val scannedDeviceId: StateFlow<String?> = _scannedDeviceId.asStateFlow()
+
+    fun setScannedDeviceId(id: String) {
+        _scannedDeviceId.value = id
+    }
+
+    fun login(email: String, password: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                _authState.value = AuthState.Authenticated
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(mapError(e))
+            }
+        }
+    }
+
+    fun register(fullName: String, email: String, mobileNumber: String, deviceId: String, password: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                // 1. Check Device ID uniqueness (UX Check)
+                val existingDevice = firestore.collection("users")
+                    .whereEqualTo("deviceId", deviceId)
+                    .get()
+                    .await()
+
+                if (!existingDevice.isEmpty) {
+                    _authState.value = AuthState.Error("This Device ID is already registered.", isFieldSpecific = true)
+                    return@launch
+                }
+
+                // 2. Create Auth User
+                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+                val uid = authResult.user?.uid ?: throw Exception("Auth creation failed")
+
+                // 3. Create Firestore Profile
+                val userProfile = hashMapOf(
+                    "uid" to uid,
+                    "email" to email,
+                    "fullName" to fullName,
+                    "mobileNumber" to mobileNumber,
+                    "deviceId" to deviceId,
+                    "createdAt" to FieldValue.serverTimestamp()
+                )
+
+                try {
+                    firestore.collection("users").document(uid).set(userProfile).await()
+                    _authState.value = AuthState.Authenticated
+                } catch (_: Exception) {
+                    // 4. Rollback Auth user if profile fails
+                    authResult.user?.delete()?.await()
+                    _authState.value = AuthState.Error("Registration failed. Please try again.")
+                }
+
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(mapError(e))
+            }
+        }
+    }
+
+    fun resetPassword(email: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                auth.sendPasswordResetEmail(email).await()
+                _authState.value = AuthState.Idle // Or a specific success state
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(mapError(e))
+            }
+        }
+    }
+
+    fun logout() {
+        auth.signOut()
+        _authState.value = AuthState.Unauthenticated
+    }
+
+    private fun mapError(e: Exception): String {
+        return if (e is FirebaseAuthException) {
+            when (e.errorCode) {
+                "ERROR_INVALID_EMAIL" -> "Invalid email address format."
+                "ERROR_WRONG_PASSWORD" -> "Incorrect password."
+                "ERROR_USER_NOT_FOUND" -> "No account found with this email."
+                "ERROR_EMAIL_ALREADY_IN_USE" -> "This email is already registered."
+                "ERROR_NETWORK_REQUEST_FAILED" -> "Network error. Please check your connection."
+                "ERROR_WEAK_PASSWORD" -> "Password is too weak."
+                else -> e.localizedMessage ?: "An authentication error occurred."
+            }
+        } else {
+            e.localizedMessage ?: "An unexpected error occurred."
+        }
+    }
+}
