@@ -16,12 +16,14 @@ import com.gassense.models.AppThresholds
 import com.gassense.models.SensorThreshold
 import com.gassense.utils.ThresholdManager
 import com.gassense.viewmodels.AuthViewModel
+import com.gassense.viewmodels.SensorViewModel
 
 class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
     private val authViewModel: AuthViewModel by activityViewModels()
+    private val sensorViewModel: SensorViewModel by activityViewModels()
 
     private lateinit var currentThresholds: AppThresholds
     private val dev = AppThresholds.DEV_DEFAULTS
@@ -69,6 +71,7 @@ class SettingsFragment : Fragment() {
 
     private fun performLogout() {
         authViewModel.logout()
+        sensorViewModel.stopListening()
         ThresholdManager.resetToDefaults(requireContext())
         requireActivity().apply {
             startActivity(Intent(this, AuthActivity::class.java).apply {

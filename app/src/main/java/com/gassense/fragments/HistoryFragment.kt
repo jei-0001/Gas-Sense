@@ -6,20 +6,25 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.gassense.R
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.gassense.databinding.FragmentHistoryBinding
-import com.github.mikephil.charting.charts.LineChart
+import com.gassense.viewmodels.HistoryRecord
+import com.gassense.viewmodels.SensorViewModel
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 class HistoryFragment : Fragment() {
 
     private var _binding: FragmentHistoryBinding? = null
     private val binding get() = _binding!!
-
-    enum class TimePeriod { DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY }
-    private var currentPeriod = TimePeriod.WEEKLY
+    private val sensorViewModel: SensorViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -31,31 +36,61 @@ class HistoryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupChart()
-        setupChipGroup()
-        loadPeriodData(TimePeriod.WEEKLY)
+        showPlaceholders()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sensorViewModel.historyData.collect { records ->
+                    if (records.isNotEmpty()) {
+                        binding.lineChart.visibility = View.VISIBLE
+                        updateUI(records)
+                    } else {
+                        binding.lineChart.visibility = View.GONE
+                        showPlaceholders()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showPlaceholders() {
+        binding.tvGasHighest.text = "---"
+        binding.tvGasLowest.text = "---"
+        binding.tvGasAverage.text = "---"
+
+        binding.tvPressurePeak.text = "---"
+        binding.tvPressureMin.text = "---"
+        binding.tvPressureAvg.text = "---"
+        
+        binding.tvPressureSummaryTitle.text = "History (Awaiting Data)"
     }
 
     private fun setupChart() {
         binding.lineChart.apply {
             description.isEnabled = false
-            legend.isEnabled = false
-            setNoDataText("Loading data...")
+            legend.isEnabled = true
+            legend.textColor = Color.WHITE
+            setNoDataText("Awaiting data from ESP32...")
             setNoDataTextColor(Color.parseColor("#94A3B8"))
             setBackgroundColor(Color.TRANSPARENT)
             setDrawGridBackground(false)
             setTouchEnabled(true)
             isDragEnabled = true
-            setScaleEnabled(false)
-            setPinchZoom(false)
-            isDoubleTapToZoomEnabled = false
-            extraBottomOffset = 8f
+            setScaleEnabled(true)
+            setPinchZoom(true)
+            extraBottomOffset = 12f
 
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
                 textColor = Color.parseColor("#94A3B8")
-                textSize = 10f
-                granularity = 1f
+                textSize = 9f
+                valueFormatter = object : ValueFormatter() {
+                    private val mFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                    override fun getFormattedValue(value: Float): String {
+                        return mFormat.format(Date(value.toLong()))
+                    }
+                }
             }
             axisLeft.apply {
                 setDrawGridLines(true)
@@ -68,144 +103,57 @@ class HistoryFragment : Fragment() {
         }
     }
 
-    private fun setupChipGroup() {
-        binding.chipGroupTimePeriod.setOnCheckedStateChangeListener { _, checkedIds ->
-            val period = when {
-                checkedIds.contains(R.id.chipDaily) -> TimePeriod.DAILY
-                checkedIds.contains(R.id.chipWeekly) -> TimePeriod.WEEKLY
-                checkedIds.contains(R.id.chipMonthly) -> TimePeriod.MONTHLY
-                checkedIds.contains(R.id.chipQuarterly) -> TimePeriod.QUARTERLY
-                checkedIds.contains(R.id.chipYearly) -> TimePeriod.YEARLY
-                else -> TimePeriod.WEEKLY
-            }
-            loadPeriodData(period)
-        }
+    private fun updateUI(records: List<HistoryRecord>) {
+        val gasEntries = records.map { Entry(it.timestamp.toFloat(), it.gasPpm) }
+        val pressureEntries = records.map { Entry(it.timestamp.toFloat(), it.pressurePsi) }
+
+        updateChart(gasEntries, pressureEntries)
+        updateStats(records)
     }
 
-    private fun loadPeriodData(period: TimePeriod) {
-        currentPeriod = period
-        val config = getDataConfig(period)
-
-        // Update chart
-        updateChart(config.gasEntries, config.pressureEntries, config.labels)
-
-        // Update stats
-        binding.tvGasHighest.text = config.gasHighest
-        binding.tvGasLowest.text = config.gasLowest
-        binding.tvGasAverage.text = config.gasAverage
-        binding.tvPressurePeak.text = config.pressurePeak
-        binding.tvPressureMin.text = config.pressureMin
-        binding.tvPressureAvg.text = config.pressureAvg
-        binding.tvPressureSummaryTitle.text = "Pressure Summary (${period.name.lowercase().replaceFirstChar { it.uppercase() }})"
-
-        // Show/hide insights card for Quarterly and Yearly
-        val showInsights = period == TimePeriod.QUARTERLY || period == TimePeriod.YEARLY
-        binding.cardUsageInsights.visibility = if (showInsights) View.VISIBLE else View.GONE
-
-        // Update insights text for each period
-        if (showInsights) {
-            updateInsights(period)
-        }
-    }
-
-    private fun updateInsights(period: TimePeriod) {
-        if (period == TimePeriod.YEARLY) {
-            binding.tvInsightText1.text = "📈 Annual gas usage is up 12% compared to last year."
-            binding.tvInsightText2.text = "⚠️ 9 warning-level events recorded this year — up from 4 last year."
-            binding.tvInsightText3.text = "✅ No critical shutoff events triggered this year."
-        } else {
-            binding.tvInsightText1.text = "📈 Gas usage is 18% higher this quarter compared to last."
-            binding.tvInsightText2.text = "⚠️ 3 warning-level events recorded — up from 1 last quarter."
-            binding.tvInsightText3.text = "✅ Average gas concentration remains safe at 12% LEL."
-        }
-    }
-
-    private fun updateChart(
-        gasEntries: List<Entry>,
-        pressureEntries: List<Entry>,
-        labels: List<String>
-    ) {
-        val gasDataSet = LineDataSet(gasEntries, "Gas %LEL").apply {
+    private fun updateChart(gasEntries: List<Entry>, pressureEntries: List<Entry>) {
+        val gasDataSet = LineDataSet(gasEntries, "Gas PPM").apply {
             color = Color.parseColor("#60A5FA")
             setCircleColor(Color.parseColor("#60A5FA"))
-            lineWidth = 2.5f
-            circleRadius = 4f
+            lineWidth = 2f
+            circleRadius = 3f
             setDrawCircleHole(false)
             setDrawValues(false)
             mode = LineDataSet.Mode.CUBIC_BEZIER
-            setDrawFilled(true)
-            fillColor = Color.parseColor("#60A5FA")
-            fillAlpha = 30
         }
 
         val pressureDataSet = LineDataSet(pressureEntries, "Pressure PSI").apply {
             color = Color.parseColor("#A78BFA")
             setCircleColor(Color.parseColor("#A78BFA"))
-            lineWidth = 2.5f
-            circleRadius = 4f
+            lineWidth = 2f
+            circleRadius = 3f
             setDrawCircleHole(false)
             setDrawValues(false)
             mode = LineDataSet.Mode.CUBIC_BEZIER
-            setDrawFilled(true)
-            fillColor = Color.parseColor("#A78BFA")
-            fillAlpha = 30
         }
 
-        binding.lineChart.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
         binding.lineChart.data = LineData(gasDataSet, pressureDataSet)
         binding.lineChart.invalidate()
     }
 
-    data class PeriodDataConfig(
-        val gasEntries: List<Entry>,
-        val pressureEntries: List<Entry>,
-        val labels: List<String>,
-        val gasHighest: String,
-        val gasLowest: String,
-        val gasAverage: String,
-        val pressurePeak: String,
-        val pressureMin: String,
-        val pressureAvg: String
-    )
+    private fun updateStats(records: List<HistoryRecord>) {
+        val maxGas = records.maxOf { it.gasPpm }
+        val minGas = records.minOf { it.gasPpm }
+        val avgGas = records.map { it.gasPpm }.average()
 
-    private fun getDataConfig(period: TimePeriod): PeriodDataConfig {
-        return when (period) {
-            TimePeriod.DAILY -> PeriodDataConfig(
-                gasEntries = listOf(8f,9f,11f,10f,13f,12f,14f,12f,10f,9f,8f,11f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                pressureEntries = listOf(85f,84f,86f,87f,88f,89f,87f,86f,85f,84f,85f,86f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                labels = listOf("6am","7","8","9","10","11","12pm","1","2","3","4","5"),
-                gasHighest = "14%LEL", gasLowest = "8%LEL", gasAverage = "11%LEL",
-                pressurePeak = "89 PSI", pressureMin = "84 PSI", pressureAvg = "86 PSI"
-            )
-            TimePeriod.WEEKLY -> PeriodDataConfig(
-                gasEntries = listOf(10f,12f,9f,15f,11f,8f,13f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                pressureEntries = listOf(88f,90f,85f,93f,87f,80f,89f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                labels = listOf("Mon","Tue","Wed","Thu","Fri","Sat","Sun"),
-                gasHighest = "22%LEL", gasLowest = "5%LEL", gasAverage = "12%LEL",
-                pressurePeak = "93 PSI", pressureMin = "80 PSI", pressureAvg = "86 PSI"
-            )
-            TimePeriod.MONTHLY -> PeriodDataConfig(
-                gasEntries = listOf(11f,13f,10f,15f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                pressureEntries = listOf(87f,90f,84f,92f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                labels = listOf("Week 1","Week 2","Week 3","Week 4"),
-                gasHighest = "25%LEL", gasLowest = "6%LEL", gasAverage = "12%LEL",
-                pressurePeak = "95 PSI", pressureMin = "78 PSI", pressureAvg = "88 PSI"
-            )
-            TimePeriod.QUARTERLY -> PeriodDataConfig(
-                gasEntries = listOf(10f,12f,15f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                pressureEntries = listOf(86f,89f,92f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                labels = listOf("Month 1","Month 2","Month 3"),
-                gasHighest = "28%LEL", gasLowest = "4%LEL", gasAverage = "13%LEL",
-                pressurePeak = "98 PSI", pressureMin = "76 PSI", pressureAvg = "89 PSI"
-            )
-            TimePeriod.YEARLY -> PeriodDataConfig(
-                gasEntries = listOf(8f,9f,10f,12f,11f,13f,14f,12f,10f,9f,11f,12f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                pressureEntries = listOf(84f,85f,88f,90f,89f,92f,94f,91f,88f,86f,87f,89f).mapIndexed { i, v -> Entry(i.toFloat(), v) },
-                labels = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"),
-                gasHighest = "32%LEL", gasLowest = "3%LEL", gasAverage = "11%LEL",
-                pressurePeak = "102 PSI", pressureMin = "72 PSI", pressureAvg = "88 PSI"
-            )
-        }
+        val maxPress = records.maxOf { it.pressurePsi }
+        val minPress = records.minOf { it.pressurePsi }
+        val avgPress = records.map { it.pressurePsi }.average()
+
+        binding.tvGasHighest.text = String.format("%.0f PPM", maxGas)
+        binding.tvGasLowest.text = String.format("%.0f PPM", minGas)
+        binding.tvGasAverage.text = String.format("%.0f PPM", avgGas)
+
+        binding.tvPressurePeak.text = String.format("%.1f PSI", maxPress)
+        binding.tvPressureMin.text = String.format("%.1f PSI", minPress)
+        binding.tvPressureAvg.text = String.format("%.1f PSI", avgPress)
+        
+        binding.tvPressureSummaryTitle.text = "Real-time Pressure History"
     }
 
     override fun onDestroyView() {

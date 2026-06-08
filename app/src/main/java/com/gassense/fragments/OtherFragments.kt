@@ -157,6 +157,7 @@ class ForgotPasswordFragment : Fragment() {
 class DeviceManagementFragment : Fragment() {
     private var _binding: FragmentDeviceManagementBinding? = null
     private val binding get() = _binding!!
+    private val authViewModel: AuthViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
         _binding = FragmentDeviceManagementBinding.inflate(inflater, c, false)
@@ -165,14 +166,31 @@ class DeviceManagementFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val devices = listOf(
-            DeviceItem(name = "Kitchen Tank", deviceId = "GS-2024-A1B2C3", isOnline = true, lastSynced = "2 minutes ago"),
-            DeviceItem(name = "Back Stall", deviceId = "GS-2024-D4E5F6", isOnline = false, lastSynced = "3 hours ago"),
-        )
-        binding.rvDevices.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = DevicesAdapter(devices)
+        
+        binding.rvDevices.layoutManager = LinearLayoutManager(context)
+        
+        authViewModel.fetchProfile()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                authViewModel.userProfile.collect { profile ->
+                    if (profile != null) {
+                        val devices = listOf(
+                            DeviceItem(
+                                name = profile.fullName + "'s Unit",
+                                deviceId = profile.deviceId,
+                                isOnline = true, // We assume true for simplicity or fetch actual status
+                                lastSynced = "Just now"
+                            )
+                        )
+                        binding.rvDevices.adapter = DevicesAdapter(devices)
+                    } else {
+                        binding.rvDevices.adapter = DevicesAdapter(emptyList())
+                    }
+                }
+            }
         }
+
         binding.btnAddDevice.setOnClickListener {
             findNavController().navigate(R.id.action_devices_to_add)
         }

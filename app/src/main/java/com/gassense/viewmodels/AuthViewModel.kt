@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,14 @@ sealed class AuthState {
     data class Error(val message: String, val isFieldSpecific: Boolean = false) : AuthState()
 }
 
+data class UserProfile(
+    val uid: String = "",
+    val email: String = "",
+    val fullName: String = "",
+    val mobileNumber: String = "",
+    val deviceId: String = ""
+)
+
 class AuthViewModel : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -27,6 +36,9 @@ class AuthViewModel : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    private val _userProfile = MutableStateFlow<UserProfile?>(null)
+    val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
     private val _scannedDeviceId = MutableStateFlow<String?>(null)
     val scannedDeviceId: StateFlow<String?> = _scannedDeviceId.asStateFlow()
@@ -40,10 +52,34 @@ class AuthViewModel : ViewModel() {
             _authState.value = AuthState.Loading
             try {
                 auth.signInWithEmailAndPassword(email, password).await()
+                
+                // Fetch profile and subscribe
+                val uid = auth.currentUser?.uid
+                if (uid != null) {
+                    val doc = firestore.collection("users").document(uid).get().await()
+                    val profile = doc.toObject(UserProfile::class.java)
+                    _userProfile.value = profile
+                    
+                    val deviceId = profile?.deviceId
+                    if (deviceId != null) {
+                        FirebaseMessaging.getInstance().subscribeToTopic("device_$deviceId").await()
+                    }
+                }
+                
                 _authState.value = AuthState.Authenticated
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(mapError(e))
             }
+        }
+    }
+
+    fun fetchProfile() {
+        val uid = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                val doc = firestore.collection("users").document(uid).get().await()
+                _userProfile.value = doc.toObject(UserProfile::class.java)
+            } catch (_: Exception) {}
         }
     }
 
@@ -78,6 +114,10 @@ class AuthViewModel : ViewModel() {
 
                 try {
                     firestore.collection("users").document(uid).set(userProfile).await()
+                    
+                    // Subscribe to device topic
+                    FirebaseMessaging.getInstance().subscribeToTopic("device_$deviceId").await()
+                    
                     _authState.value = AuthState.Authenticated
                 } catch (_: Exception) {
                     // 4. Rollback Auth user if profile fails
@@ -105,6 +145,7 @@ class AuthViewModel : ViewModel() {
 
     fun logout() {
         auth.signOut()
+        _userProfile.value = null
         _authState.value = AuthState.Unauthenticated
     }
 

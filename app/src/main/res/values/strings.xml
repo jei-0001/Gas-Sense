@@ -163,4 +163,7 @@
     <string name="unit_psi">PSI</string>
     <string name="unit_celsius">°C</string>
     <string name="unit_percent">%</string>
+
+    <!-- Notifications -->
+    <string name="default_notification_channel_id" translatable="false">safety_alerts_channel</string>
 </resources>
