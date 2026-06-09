@@ -28,7 +28,7 @@ data class HistoryRecord(
 
 class SensorViewModel : ViewModel() {
 
-    private val database = FirebaseDatabase.getInstance()
+    private val database = FirebaseDatabase.getInstance("https://gas-sense-95d60-default-rtdb.asia-southeast1.firebasedatabase.app/")
     private var latestListener: ValueEventListener? = null
     private var historyListener: ValueEventListener? = null
     private var alertsListener: ValueEventListener? = null
