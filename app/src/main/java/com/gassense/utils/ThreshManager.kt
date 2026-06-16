@@ -16,6 +16,7 @@ object ThresholdManager {
     private const val KEY_TEMP_CRIT = "temp_critical"
     private const val KEY_HUM_WARN = "humidity_warning"
     private const val KEY_HUM_CRIT = "humidity_critical"
+    private const val KEY_SMS_NUMBER = "sms_recipient_number"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -60,6 +61,14 @@ object ThresholdManager {
             putInt(KEY_HUM_CRIT, thresholds.humidity.criticalLevel.coerceIn(dev.humidity.devMin, dev.humidity.devMax))
             apply()
         }
+    }
+
+    fun saveSmsNumber(context: Context, number: String) {
+        prefs(context).edit().putString(KEY_SMS_NUMBER, number).apply()
+    }
+
+    fun getSmsNumber(context: Context): String {
+        return prefs(context).getString(KEY_SMS_NUMBER, "") ?: ""
     }
 
     fun resetToDefaults(context: Context) {

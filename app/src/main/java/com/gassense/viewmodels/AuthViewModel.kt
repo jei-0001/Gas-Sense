@@ -26,7 +26,8 @@ data class UserProfile(
     val email: String = "",
     val fullName: String = "",
     val mobileNumber: String = "",
-    val deviceId: String = ""
+    val deviceId: String = "",
+    val role: String = "user"
 )
 
 class AuthViewModel : ViewModel() {
@@ -87,42 +88,47 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                // 1. Check Device ID uniqueness (UX Check)
+                // 1. Create Auth User FIRST (so we are authorized to read the database)
+                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+                val uid = authResult.user?.uid ?: throw Exception("Auth creation failed")
+
+                // 2. NOW check Device ID uniqueness
                 val existingDevice = firestore.collection("users")
                     .whereEqualTo("deviceId", deviceId)
                     .get()
                     .await()
 
                 if (!existingDevice.isEmpty) {
+                    // Rollback: Delete the auth user if the device ID is already taken
+                    authResult.user?.delete()?.await()
                     _authState.value = AuthState.Error("This Device ID is already registered.", isFieldSpecific = true)
                     return@launch
                 }
 
-                // 2. Create Auth User
-                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
-                val uid = authResult.user?.uid ?: throw Exception("Auth creation failed")
-
                 // 3. Create Firestore Profile
-                val userProfile = hashMapOf(
+                val userProfileMap = hashMapOf(
                     "uid" to uid,
                     "email" to email,
                     "fullName" to fullName,
                     "mobileNumber" to mobileNumber,
                     "deviceId" to deviceId,
+                    "role" to "user",
                     "createdAt" to FieldValue.serverTimestamp()
                 )
 
                 try {
-                    firestore.collection("users").document(uid).set(userProfile).await()
+                    firestore.collection("users").document(uid).set(userProfileMap).await()
                     
                     // Subscribe to device topic
                     FirebaseMessaging.getInstance().subscribeToTopic("device_$deviceId").await()
                     
+                    // Update local state
+                    _userProfile.value = UserProfile(uid, email, fullName, mobileNumber, deviceId, "user")
                     _authState.value = AuthState.Authenticated
-                } catch (_: Exception) {
-                    // 4. Rollback Auth user if profile fails
+                } catch (e: Exception) {
+                    // 4. Rollback Auth user if profile writing fails
                     authResult.user?.delete()?.await()
-                    _authState.value = AuthState.Error("Registration failed. Please try again.")
+                    _authState.value = AuthState.Error("Registration failed: ${e.localizedMessage}")
                 }
 
             } catch (e: Exception) {

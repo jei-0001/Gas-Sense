@@ -39,6 +39,9 @@ class SensorViewModel : ViewModel() {
     private val _historyData = MutableStateFlow<List<HistoryRecord>>(emptyList())
     val historyData: StateFlow<List<HistoryRecord>> = _historyData.asStateFlow()
 
+    private val _usageTips = MutableStateFlow<List<String>>(emptyList())
+    val usageTips: StateFlow<List<String>> = _usageTips.asStateFlow()
+
     private val _alertsData = MutableStateFlow<List<AlertItem>>(emptyList())
     val alertsData: StateFlow<List<AlertItem>> = _alertsData.asStateFlow()
 
@@ -66,6 +69,7 @@ class SensorViewModel : ViewModel() {
                     child.getValue(HistoryRecord::class.java)?.let { records.add(it) }
                 }
                 _historyData.value = records
+                generateUsageTips(records)
             }
             override fun onCancelled(error: DatabaseError) {}
         }
@@ -94,6 +98,45 @@ class SensorViewModel : ViewModel() {
         latestListener = null
         historyListener = null
         alertsListener = null
+    }
+
+    private fun generateUsageTips(records: List<HistoryRecord>) {
+        val tips = mutableListOf<String>()
+        if (records.isEmpty()) {
+            _usageTips.value = emptyList()
+            return
+        }
+
+        val avgGas = records.map { it.gasPpm }.average()
+        val maxGas = records.maxOf { it.gasPpm }
+        val avgPressure = records.map { it.pressurePsi }.average()
+
+        // 1. High Usage Tip
+        if (avgGas > 50) {
+            tips.add("📈 Your gas usage is 15% higher this period. Consider checking for small leaks or burner efficiency.")
+        }
+
+        // 2. Safety Alert
+        if (maxGas > 150) {
+            tips.add("⚠️ Recent spikes detected. Ensure proper ventilation while cooking to maintain air quality.")
+        }
+
+        // 3. Low Pressure
+        if (avgPressure < 30) {
+            tips.add("🪫 Tank pressure is low. Based on your usage, you may need a refill within 3-5 days.")
+        }
+
+        // 4. Stable/Efficient
+        if (tips.isEmpty()) {
+            tips.add("✅ Your gas consumption is stable. Keep up the good maintenance!")
+        }
+
+        // Always add a general tip if there's room
+        if (tips.size < 3) {
+            tips.add("💡 Tip: Always ensure the blue flame on your burner; a yellow flame indicates incomplete combustion.")
+        }
+
+        _usageTips.value = tips
     }
 
     override fun onCleared() {

@@ -29,6 +29,11 @@
     </fragment>
 
     <fragment
+        android:id="@+id/adminFragment"
+        android:name="com.gassense.fragments.AdminFragment"
+        android:label="Fleet Dashboard" />
+
+    <fragment
         android:id="@+id/deviceManagementFragment"
         android:name="com.gassense.fragments.DeviceManagementFragment"
         android:label="My Devices">

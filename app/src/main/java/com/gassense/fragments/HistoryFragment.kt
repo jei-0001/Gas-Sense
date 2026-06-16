@@ -51,6 +51,14 @@ class HistoryFragment : Fragment() {
                 }
             }
         }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sensorViewModel.usageTips.collect { tips ->
+                    updateTipsUI(tips)
+                }
+            }
+        }
     }
 
     private fun showPlaceholders() {
@@ -154,6 +162,25 @@ class HistoryFragment : Fragment() {
         binding.tvPressureAvg.text = String.format("%.1f PSI", avgPress)
         
         binding.tvPressureSummaryTitle.text = "Real-time Pressure History"
+    }
+
+    private fun updateTipsUI(tips: List<String>) {
+        if (tips.isEmpty()) {
+            binding.cardUsageInsights.visibility = View.GONE
+        } else {
+            binding.cardUsageInsights.visibility = View.VISIBLE
+            binding.tvInsightText1.text = tips.getOrNull(0) ?: ""
+            
+            binding.tvInsightText2.apply {
+                text = tips.getOrNull(1) ?: ""
+                visibility = if (tips.size > 1) View.VISIBLE else View.GONE
+            }
+            
+            binding.tvInsightText3.apply {
+                text = tips.getOrNull(2) ?: ""
+                visibility = if (tips.size > 2) View.VISIBLE else View.GONE
+            }
+        }
     }
 
     override fun onDestroyView() {

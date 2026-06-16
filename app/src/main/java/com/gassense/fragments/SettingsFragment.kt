@@ -40,6 +40,7 @@ class SettingsFragment : Fragment() {
 
         currentThresholds = ThresholdManager.load(requireContext())
         populateFields(currentThresholds)
+        binding.etSmsNumber.setText(ThresholdManager.getSmsNumber(requireContext()))
 
         binding.cardMyDevices.setOnClickListener {
             findNavController().navigate(R.id.action_settings_to_devices)
@@ -135,6 +136,7 @@ class SettingsFragment : Fragment() {
         )
 
         ThresholdManager.save(requireContext(), newThresholds)
+        ThresholdManager.saveSmsNumber(requireContext(), binding.etSmsNumber.text.toString())
         currentThresholds = newThresholds
         Toast.makeText(context, "✓ Thresholds saved!", Toast.LENGTH_SHORT).show()
     }

@@ -68,6 +68,7 @@
     <string name="section_alert_thresholds">Alert Thresholds</string>
     <string name="section_alert_thresholds_caps">ALERT THRESHOLDS</string>
     <string name="threshold_safety_info">Thresholds are bounded by developer safety limits. Warning must be lower than Critical.</string>
+    <string name="threshold_modification_warning"><b>⚠️ ATTENTION:</b> Do not modify these values unless you are a qualified technician. Incorrect settings can compromise system safety.</string>
     <string name="gas_concentration">Gas Concentration</string>
     <string name="warning_caps">WARNING</string>
     <string name="critical_caps">CRITICAL</string>
@@ -157,6 +158,13 @@
     <string name="nav_alerts">Alerts</string>
     <string name="nav_history">History</string>
     <string name="nav_settings">Settings</string>
+    <string name="nav_admin">Admin</string>
+    <string name="admin_fleet_title">Fleet Management</string>
+    <string name="admin_all_devices">ALL CONNECTED DEVICES</string>
+    <string name="admin_gas_level_caps">GAS LEVEL</string>
+    <string name="admin_pressure_caps">PRESSURE</string>
+    <string name="admin_shutoff">SHUTOFF</string>
+    <string name="admin_open_valve">OPEN VALVE</string>
 
     <!-- Units -->
     <string name="unit_lel">%LEL</string>

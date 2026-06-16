@@ -6,17 +6,24 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.gassense.R
 import com.gassense.databinding.ActivityMainBinding
+import com.gassense.viewmodels.AuthViewModel
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private val authViewModel: AuthViewModel by viewModels()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -39,6 +46,15 @@ class MainActivity : AppCompatActivity() {
         val navController = navHostFragment.navController
 
         binding.bottomNav.setupWithNavController(navController)
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                authViewModel.userProfile.collect { profile ->
+                    val isAdmin = profile?.role == "admin"
+                    binding.bottomNav.menu.findItem(R.id.adminFragment)?.isVisible = isAdmin
+                }
+            }
+        }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             val hideNav = setOf(

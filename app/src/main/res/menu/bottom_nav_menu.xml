@@ -16,4 +16,9 @@
         android:id="@+id/settingsFragment"
         android:icon="@drawable/ic_settings"
         android:title="Settings" />
+    <item
+        android:id="@+id/adminFragment"
+        android:icon="@drawable/ic_admin_panel"
+        android:title="@string/nav_admin"
+        android:visible="false" />
 </menu>

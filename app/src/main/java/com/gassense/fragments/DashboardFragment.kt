@@ -1,7 +1,6 @@
 package com.gassense.fragments
 
 import android.os.Bundle
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,11 +13,15 @@ import com.gassense.R
 import com.gassense.databinding.FragmentDashboardBinding
 import com.gassense.models.AppThresholds
 import com.gassense.utils.ThresholdManager
+import com.gassense.viewmodels.AuthViewModel
 import com.gassense.viewmodels.LiveSensorData
 import com.gassense.viewmodels.SensorViewModel
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 
 
@@ -28,6 +31,7 @@ class DashboardFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var thresholds: AppThresholds
+    private val authViewModel: AuthViewModel by activityViewModels()
     private val sensorViewModel: SensorViewModel by activityViewModels()
 
     override fun onCreateView(
@@ -43,13 +47,30 @@ class DashboardFragment : Fragment() {
         setupDeviceSwitcher()
         setupDemoButtons()
 
-        // Start listening to the default device (this would ideally come from the user's profile)
-        sensorViewModel.startListening("DEV-TEST-0001")
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                authViewModel.userProfile.collect { profile ->
+                    val deviceId = profile?.deviceId ?: "DEV-TEST-0001"
+                    binding.chipDeviceSwitcher.text = if (profile != null) profile.fullName + "'s Tank" else deviceId
+                    sensorViewModel.startListening(deviceId)
+                }
+            }
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                sensorViewModel.sensorData.collect { data ->
-                    updateSensorDisplay(data)
+                launch {
+                    sensorViewModel.sensorData.collect { data ->
+                        updateSensorDisplay(data)
+                    }
+                }
+
+                // Heartbeat timer: refresh status every 30 seconds to catch stale data
+                launch {
+                    while (isActive) {
+                        delay(30_000)
+                        updateSensorDisplay(sensorViewModel.sensorData.value)
+                    }
                 }
             }
         }
@@ -107,18 +128,65 @@ class DashboardFragment : Fragment() {
     }
 
     private fun updateSensorDisplay(data: LiveSensorData) {
+        val currentTime = System.currentTimeMillis()
+        // Threshold: 60 seconds of inactivity = Offline
+        val isStale = data.timestamp > 0 && (currentTime - data.timestamp) > 60_000
+
+        if (data.timestamp == 0L || isStale) {
+            showOfflineState(data.timestamp)
+            return
+        }
+
+        // Update connection dot to green
+        binding.connectionDot.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            requireContext().getColor(R.color.safe_green)
+        )
+
         // Map data to UI
-        binding.tvGasValue.text = String.format("%.0f", data.gasPpm)
-        binding.tvPressureValue.text = String.format("%.1f", data.pressurePsi)
-        binding.tvTempValue.text = String.format("%.1f", data.tempC)
-        binding.tvHumidityValue.text = String.format("%.1f", data.humidityPct)
+        binding.tvGasValue.text = String.format(Locale.getDefault(), "%.0f", data.gasPpm)
+        binding.tvPressureValue.text = String.format(Locale.getDefault(), "%.1f", data.pressurePsi)
+        binding.tvTempValue.text = String.format(Locale.getDefault(), "%.1f", data.tempC)
+        binding.tvHumidityValue.text = String.format(Locale.getDefault(), "%.1f", data.humidityPct)
         
         // Estimated tank level calculation (simplified)
         val tankLevel = calculateTankLevel(data.pressurePsi)
         binding.progressTankLevel.progress = tankLevel
-        binding.tvTankPercentage.text = "$tankLevel%"
+        binding.tvTankPercentage.text = String.format(Locale.getDefault(), "%d%%", tankLevel)
         
         updateStatusBadge(data.hazardLevel)
+    }
+
+    private fun showOfflineState(timestamp: Long = 0L) {
+        val ctx = requireContext()
+        val currentTime = System.currentTimeMillis()
+        
+        // Update connection dot to gray/hint color
+        binding.connectionDot.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            ctx.getColor(R.color.text_hint)
+        )
+
+        binding.tvStatusLabel.text = getString(R.string.status_offline).uppercase(Locale.getDefault())
+        binding.tvStatusLabel.setTextColor(ctx.getColor(R.color.text_secondary))
+        
+        if (timestamp > 0) {
+            val diffMinutes = (currentTime - timestamp) / 60_000
+            binding.tvStatusSubtitle.text = if (diffMinutes < 60) {
+                "Inactive for $diffMinutes min"
+            } else {
+                "Inactive for ${diffMinutes / 60} hours"
+            }
+        } else {
+            binding.tvStatusSubtitle.text = "Waiting for device signal..."
+        }
+
+        binding.cvStatusBadge.setCardBackgroundColor(ctx.getColor(R.color.card_medium))
+
+        binding.tvGasValue.text = "--"
+        binding.tvPressureValue.text = "--"
+        binding.tvTempValue.text = "--"
+        binding.tvHumidityValue.text = "--"
+        binding.progressTankLevel.progress = 0
+        binding.tvTankPercentage.text = "--%"
     }
 
     private fun calculateTankLevel(pressure: Float): Int {
