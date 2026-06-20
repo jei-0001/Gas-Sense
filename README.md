@@ -7,7 +7,6 @@ Built with safety and technical reliability in mind, Gas Sense features real-tim
 
 
 🚀 Key Features
-- Predictive Leak Detection: Employs pressure rate-of-change algorithms to detect micro-leaks before they escalate
   
 - Multi-Sensor Fusion: Integrates chemical sensing and physical pressure monitoring for high-accuracy hazard detection.
 
