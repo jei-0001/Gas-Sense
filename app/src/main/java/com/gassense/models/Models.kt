@@ -9,13 +9,18 @@ data class SensorData(
 )
 
 data class AlertItem(
-    val title: String,
-    val description: String,
-    val severity: Severity,
-    val timestamp: String,
-    val autoShutoffTriggered: Boolean
+    val title: String = "",
+    val description: String = "",
+    val severity: String = "WARNING",
+    val timestamp: String = "",
+    val autoShutoffTriggered: Boolean = false
 ) {
     enum class Severity { WARNING, CRITICAL }
+
+    fun severityEnum(): Severity = when (severity.uppercase()) {
+        "CRITICAL" -> Severity.CRITICAL
+        else -> Severity.WARNING
+    }
 }
 
 data class DeviceItem(

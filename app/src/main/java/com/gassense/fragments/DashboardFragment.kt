@@ -34,6 +34,8 @@ class DashboardFragment : Fragment() {
     private val authViewModel: AuthViewModel by activityViewModels()
     private val sensorViewModel: SensorViewModel by activityViewModels()
 
+    private var lastDialogHazardLevel = "SAFE"
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -62,6 +64,18 @@ class DashboardFragment : Fragment() {
                 launch {
                     sensorViewModel.sensorData.collect { data ->
                         updateSensorDisplay(data)
+                    }
+                }
+
+                launch {
+                    sensorViewModel.rawGasValue.collect { value ->
+                        binding.tvRawGas.text = value.toString()
+                    }
+                }
+
+                launch {
+                    sensorViewModel.rawPressureValue.collect { value ->
+                        binding.tvRawPressure.text = value.toString()
                     }
                 }
 
@@ -152,8 +166,20 @@ class DashboardFragment : Fragment() {
         val tankLevel = calculateTankLevel(data.pressurePsi)
         binding.progressTankLevel.progress = tankLevel
         binding.tvTankPercentage.text = String.format(Locale.getDefault(), "%d%%", tankLevel)
-        
+
+        // Shutoff banner
+        binding.bannerAutoShutoff.visibility =
+            if (data.autoShutoff) View.VISIBLE else View.GONE
+
         updateStatusBadge(data.hazardLevel)
+
+        // Show alert dialog on hazard level escalation
+        if (data.hazardLevel != lastDialogHazardLevel &&
+            (data.hazardLevel == "WARNING" || data.hazardLevel == "CRITICAL")
+        ) {
+            showAlertDialog(isWarning = data.hazardLevel == "WARNING")
+        }
+        lastDialogHazardLevel = data.hazardLevel
     }
 
     private fun showOfflineState(timestamp: Long = 0L) {
@@ -185,8 +211,12 @@ class DashboardFragment : Fragment() {
         binding.tvPressureValue.text = "--"
         binding.tvTempValue.text = "--"
         binding.tvHumidityValue.text = "--"
+        binding.tvRawGas.text = "----"
+        binding.tvRawPressure.text = "----"
         binding.progressTankLevel.progress = 0
         binding.tvTankPercentage.text = "--%"
+        binding.bannerAutoShutoff.visibility = View.GONE
+        lastDialogHazardLevel = "SAFE"
     }
 
     private fun calculateTankLevel(pressure: Float): Int {

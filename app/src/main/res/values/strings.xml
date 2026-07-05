@@ -105,7 +105,8 @@
     <string name="push_notif_desc">Receive alerts on your device</string>
     <string name="sms_notifications">SMS Notifications</string>
     <string name="sms_notif_desc">Receive alerts via SMS</string>
-    <string name="sms_number_hint">+1 (555) 012-3456</string>
+    <string name="sms_number_hint">09XXXXXXXXX</string>
+    <string name="save_sms_number">Save Number</string>
     <string name="sms_recipient_label">SMS Recipient Number</string>
     <string name="sms_recipient_desc">Receives critical SMS alerts</string>
 

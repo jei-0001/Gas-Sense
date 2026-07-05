@@ -29,7 +29,7 @@ class AlertsAdapter(private val alerts: List<AlertItem>) :
             tvAlertDesc.text = alert.description
             tvTimestamp.text = alert.timestamp
 
-            when (alert.severity) {
+            when (alert.severityEnum()) {
                 AlertItem.Severity.CRITICAL -> {
                     ivAlertIcon.setImageResource(R.drawable.ic_warning_triangle)
                     ivAlertIcon.imageTintList = ContextCompat.getColorStateList(ctx, R.color.critical_red)

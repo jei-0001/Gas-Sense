@@ -79,8 +79,12 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val doc = firestore.collection("users").document(uid).get().await()
-                _userProfile.value = doc.toObject(UserProfile::class.java)
-            } catch (_: Exception) {}
+                val profile = doc.toObject(UserProfile::class.java)
+                _userProfile.value = profile
+                android.util.Log.d("AuthViewModel", "Profile loaded: uid=$uid role=${profile?.role}")
+            } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "fetchProfile failed: ${e.message}")
+            }
         }
     }
 
@@ -88,35 +92,33 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                // 1. Create Auth User FIRST (so we are authorized to read the database)
+                // 1. Create Auth User
                 val authResult = auth.createUserWithEmailAndPassword(email, password).await()
                 val uid = authResult.user?.uid ?: throw Exception("Auth creation failed")
 
-                // 2. NOW check Device ID uniqueness
-                val existingDevice = firestore.collection("users")
-                    .whereEqualTo("deviceId", deviceId)
-                    .get()
-                    .await()
-
-                if (!existingDevice.isEmpty) {
-                    // Rollback: Delete the auth user if the device ID is already taken
-                    authResult.user?.delete()?.await()
-                    _authState.value = AuthState.Error("This Device ID is already registered.", isFieldSpecific = true)
-                    return@launch
-                }
-
-                // 3. Create Firestore Profile
-                val userProfileMap = hashMapOf(
-                    "uid" to uid,
-                    "email" to email,
-                    "fullName" to fullName,
-                    "mobileNumber" to mobileNumber,
-                    "deviceId" to deviceId,
-                    "role" to "user",
-                    "createdAt" to FieldValue.serverTimestamp()
-                )
-
+                // We use a nested try-catch to ensure that if Firestore fails, we delete the Auth user (Rollback)
                 try {
+                    // 2. Check Device ID uniqueness (This might trigger Permission Denied if rules are strict)
+                    val existingDevice = firestore.collection("users")
+                        .whereEqualTo("deviceId", deviceId)
+                        .get()
+                        .await()
+
+                    if (!existingDevice.isEmpty) {
+                        throw Exception("DEVICE_ALREADY_EXISTS")
+                    }
+
+                    // 3. Create Firestore Profile
+                    val userProfileMap = hashMapOf(
+                        "uid" to uid,
+                        "email" to email,
+                        "fullName" to fullName,
+                        "mobileNumber" to mobileNumber,
+                        "deviceId" to deviceId,
+                        "role" to "user",
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+
                     firestore.collection("users").document(uid).set(userProfileMap).await()
                     
                     // Subscribe to device topic
@@ -125,10 +127,18 @@ class AuthViewModel : ViewModel() {
                     // Update local state
                     _userProfile.value = UserProfile(uid, email, fullName, mobileNumber, deviceId, "user")
                     _authState.value = AuthState.Authenticated
+
                 } catch (e: Exception) {
-                    // 4. Rollback Auth user if profile writing fails
-                    authResult.user?.delete()?.await()
-                    _authState.value = AuthState.Error("Registration failed: ${e.localizedMessage}")
+                    // ROLLBACK: Delete the auth user if any part of the Firestore profile creation fails
+                    auth.currentUser?.delete()?.await()
+                    
+                    val errorMessage = when {
+                        e.message == "DEVICE_ALREADY_EXISTS" -> "This Device ID is already registered."
+                        e.localizedMessage?.contains("permission") == true -> 
+                            "Database Permission Error: Please check your Firestore security rules. Ensure users can write to /users/{uid}."
+                        else -> "Profile creation failed: ${e.localizedMessage}"
+                    }
+                    _authState.value = AuthState.Error(errorMessage, isFieldSpecific = (e.message == "DEVICE_ALREADY_EXISTS"))
                 }
 
             } catch (e: Exception) {

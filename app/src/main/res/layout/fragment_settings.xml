@@ -865,10 +865,22 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="phone"
+                            android:hint="@string/sms_number_hint"
                             android:textColor="@color/text_primary" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveSmsNumber"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/save_sms_number"
+                android:textSize="13sp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                app:cornerRadius="10dp"
+                android:backgroundTint="@color/primary_navy" />
 
             <!-- LOGOUT -->
             <com.google.android.material.button.MaterialButton

@@ -17,6 +17,7 @@ import com.gassense.models.SensorThreshold
 import com.gassense.utils.ThresholdManager
 import com.gassense.viewmodels.AuthViewModel
 import com.gassense.viewmodels.SensorViewModel
+import com.google.firebase.database.FirebaseDatabase
 
 class SettingsFragment : Fragment() {
 
@@ -27,6 +28,7 @@ class SettingsFragment : Fragment() {
 
     private lateinit var currentThresholds: AppThresholds
     private val dev = AppThresholds.DEV_DEFAULTS
+    private val database = FirebaseDatabase.getInstance("https://gas-sense-95d60-default-rtdb.asia-southeast1.firebasedatabase.app/")
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -63,6 +65,10 @@ class SettingsFragment : Fragment() {
                 if (isChecked) "AutoShutoff enabled" else "AutoShutoff disabled",
                 Toast.LENGTH_SHORT
             ).show()
+        }
+
+        binding.btnSaveSmsNumber.setOnClickListener {
+            saveSmsNumber()
         }
 
         binding.btnLogout.setOnClickListener {
@@ -136,9 +142,21 @@ class SettingsFragment : Fragment() {
         )
 
         ThresholdManager.save(requireContext(), newThresholds)
-        ThresholdManager.saveSmsNumber(requireContext(), binding.etSmsNumber.text.toString())
         currentThresholds = newThresholds
         Toast.makeText(context, "✓ Thresholds saved!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun saveSmsNumber() {
+        val smsNumber = binding.etSmsNumber.text.toString().trim()
+        if (smsNumber.isBlank()) {
+            Toast.makeText(context, "Please enter a phone number", Toast.LENGTH_SHORT).show()
+            return
+        }
+        ThresholdManager.saveSmsNumber(requireContext(), smsNumber)
+        authViewModel.userProfile.value?.deviceId?.let { deviceId ->
+            database.getReference("devices/$deviceId/config/smsRecipient").setValue(smsNumber)
+        }
+        Toast.makeText(context, "✓ SMS number saved!", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {
