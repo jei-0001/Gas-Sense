@@ -67,18 +67,6 @@ class DashboardFragment : Fragment() {
                     }
                 }
 
-                launch {
-                    sensorViewModel.rawGasValue.collect { value ->
-                        binding.tvRawGas.text = value.toString()
-                    }
-                }
-
-                launch {
-                    sensorViewModel.rawPressureValue.collect { value ->
-                        binding.tvRawPressure.text = value.toString()
-                    }
-                }
-
                 // Heartbeat timer: refresh status every 30 seconds to catch stale data
                 launch {
                     while (isActive) {
@@ -118,7 +106,7 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    private fun showAlertDialog(isWarning: Boolean) {
+    private fun showAlertDialog(isWarning: Boolean, liveData: LiveSensorData? = null) {
         val dialog = BottomSheetDialog(requireContext())
         val layoutRes = if (isWarning) R.layout.dialog_warning_alert else R.layout.dialog_critical_alert
         val sheetView = layoutInflater.inflate(layoutRes, null)
@@ -127,6 +115,20 @@ class DashboardFragment : Fragment() {
             skipCollapsed = true
             state = BottomSheetBehavior.STATE_EXPANDED
         }
+
+        if (liveData != null) {
+            // Real hazard alert — bind actual readings instead of the static demo placeholders.
+            sheetView.findViewById<android.widget.TextView>(R.id.tvSimulationBadge)?.visibility = View.GONE
+            sheetView.findViewById<android.widget.TextView>(R.id.tvGasReading)?.text =
+                String.format(Locale.getDefault(), "%.1f %%LEL", liveData.lelPercent)
+            sheetView.findViewById<android.widget.TextView>(R.id.tvPressureReading)?.text =
+                String.format(Locale.getDefault(), "%.0f PSI", liveData.pressurePsi)
+            sheetView.findViewById<android.widget.TextView>(R.id.tvTempReading)?.text =
+                String.format(Locale.getDefault(), "%.1f °C", liveData.tempC)
+            sheetView.findViewById<android.widget.TextView>(R.id.tvHumidityReading)?.text =
+                String.format(Locale.getDefault(), "%.0f %%", liveData.humidityPct)
+        }
+
         if (isWarning) {
             sheetView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDismiss)
                 ?.setOnClickListener { dialog.dismiss() }
@@ -157,7 +159,7 @@ class DashboardFragment : Fragment() {
         )
 
         // Map data to UI
-        binding.tvGasValue.text = String.format(Locale.getDefault(), "%.0f", data.gasPpm)
+        binding.tvGasValue.text = String.format(Locale.getDefault(), "%.1f", data.lelPercent)
         binding.tvPressureValue.text = String.format(Locale.getDefault(), "%.1f", data.pressurePsi)
         binding.tvTempValue.text = String.format(Locale.getDefault(), "%.1f", data.tempC)
         binding.tvHumidityValue.text = String.format(Locale.getDefault(), "%.1f", data.humidityPct)
@@ -177,7 +179,7 @@ class DashboardFragment : Fragment() {
         if (data.hazardLevel != lastDialogHazardLevel &&
             (data.hazardLevel == "WARNING" || data.hazardLevel == "CRITICAL")
         ) {
-            showAlertDialog(isWarning = data.hazardLevel == "WARNING")
+            showAlertDialog(isWarning = data.hazardLevel == "WARNING", liveData = data)
         }
         lastDialogHazardLevel = data.hazardLevel
     }
@@ -211,8 +213,6 @@ class DashboardFragment : Fragment() {
         binding.tvPressureValue.text = "--"
         binding.tvTempValue.text = "--"
         binding.tvHumidityValue.text = "--"
-        binding.tvRawGas.text = "----"
-        binding.tvRawPressure.text = "----"
         binding.progressTankLevel.progress = 0
         binding.tvTankPercentage.text = "--%"
         binding.bannerAutoShutoff.visibility = View.GONE

@@ -1,5 +1,7 @@
 package com.gassense.models
 
+import com.google.firebase.database.IgnoreExtraProperties
+
 data class SensorData(
     val gasLel: Float,
     val pressurePsi: Float,
@@ -8,6 +10,7 @@ data class SensorData(
     val tankLevel: Int
 )
 
+@IgnoreExtraProperties
 data class AlertItem(
     val title: String = "",
     val description: String = "",

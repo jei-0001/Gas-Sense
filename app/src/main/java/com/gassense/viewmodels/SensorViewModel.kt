@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.IgnoreExtraProperties
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,8 +19,10 @@ import com.gassense.models.AlertItem
 import com.gassense.utils.SmsService
 import com.gassense.utils.ThresholdManager
 
+@IgnoreExtraProperties
 data class LiveSensorData(
     val gasPpm: Float = 0f,
+    val lelPercent: Float = 0f,
     val pressurePsi: Float = 0f,
     val tempC: Float = 0f,
     val humidityPct: Float = 0f,
@@ -45,17 +48,9 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
     private var latestListener: ValueEventListener? = null
     private var historyListener: ValueEventListener? = null
     private var alertsListener: ValueEventListener? = null
-    private var rawGasListener: ValueEventListener? = null
-    private var rawPressureListener: ValueEventListener? = null
 
     private val _sensorData = MutableStateFlow(LiveSensorData())
     val sensorData: StateFlow<LiveSensorData> = _sensorData.asStateFlow()
-
-    private val _rawGasValue = MutableStateFlow(0)
-    val rawGasValue: StateFlow<Int> = _rawGasValue.asStateFlow()
-
-    private val _rawPressureValue = MutableStateFlow(0)
-    val rawPressureValue: StateFlow<Int> = _rawPressureValue.asStateFlow()
 
     private val _historyData = MutableStateFlow<List<HistoryRecord>>(emptyList())
     val historyData: StateFlow<List<HistoryRecord>> = _historyData.asStateFlow()
@@ -112,38 +107,15 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
             override fun onCancelled(error: DatabaseError) {}
         }
         alertsRef.addValueEventListener(alertsListener!!)
-
-        // 4. Listen for Raw Calibration Data
-        val rawGasRef = database.getReference("Sensors/Raw/MQ6")
-        rawGasListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                _rawGasValue.value = snapshot.getValue(Int::class.java) ?: 0
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        }
-        rawGasRef.addValueEventListener(rawGasListener!!)
-
-        val rawPressureRef = database.getReference("Sensors/Raw/Pressure")
-        rawPressureListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                _rawPressureValue.value = snapshot.getValue(Int::class.java) ?: 0
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        }
-        rawPressureRef.addValueEventListener(rawPressureListener!!)
     }
 
     fun stopListening() {
         latestListener?.let { database.reference.removeEventListener(it) }
         historyListener?.let { database.reference.removeEventListener(it) }
         alertsListener?.let { database.reference.removeEventListener(it) }
-        rawGasListener?.let { database.getReference("Sensors/Raw/MQ6").removeEventListener(it) }
-        rawPressureListener?.let { database.getReference("Sensors/Raw/Pressure").removeEventListener(it) }
         latestListener = null
         historyListener = null
         alertsListener = null
-        rawGasListener = null
-        rawPressureListener = null
         lastHazardLevel = "SAFE"
     }
 
