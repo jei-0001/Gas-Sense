@@ -16,8 +16,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 import com.gassense.models.AlertItem
+import com.gassense.models.AppThresholds
 import com.gassense.utils.SmsService
 import com.gassense.utils.ThresholdManager
+import java.util.Locale
 
 @IgnoreExtraProperties
 data class LiveSensorData(
@@ -31,9 +33,18 @@ data class LiveSensorData(
     val timestamp: Long = 0L
 )
 
+// Matches the periodic snapshot the ESP32 firmware writes to
+// devices/{id}/history/{epochMs} — field names must stay in sync with the sketch.
+@IgnoreExtraProperties
 data class HistoryRecord(
     val gasPpm: Float = 0f,
+    val lelPercent: Float = 0f,
     val pressurePsi: Float = 0f,
+    val tempC: Float = 0f,
+    val humidityPct: Float = 0f,
+    val weightKg: Float = 0f,
+    val hazardLevel: String = "SAFE",
+    val valveOpen: Boolean = false,
     val timestamp: Long = 0L
 )
 
@@ -78,8 +89,8 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
         }
         latestRef.addValueEventListener(latestListener!!)
 
-        // 2. Listen for history (last 50 records)
-        val historyRef = database.getReference("devices/$deviceId/history").limitToLast(50)
+        // 2. Listen for history — firmware logs ~1 snapshot/min, so 500 records is ~8hrs
+        val historyRef = database.getReference("devices/$deviceId/history").limitToLast(500)
         historyListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val records = mutableListOf<HistoryRecord>()
@@ -137,42 +148,100 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun generateUsageTips(records: List<HistoryRecord>) {
-        val tips = mutableListOf<String>()
-        if (records.isEmpty()) {
+        if (records.size < 2) {
             _usageTips.value = emptyList()
             return
         }
 
-        val avgGas = records.map { it.gasPpm }.average()
-        val maxGas = records.maxOf { it.gasPpm }
-        val avgPressure = records.map { it.pressurePsi }.average()
+        val tips = mutableListOf<String>()
+        val sorted = records.sortedBy { it.timestamp }
+        val dev = AppThresholds.DEV_DEFAULTS
 
-        // 1. High Usage Tip
-        if (avgGas > 50) {
-            tips.add("📈 Your gas usage is 15% higher this period. Consider checking for small leaks or burner efficiency.")
+        val avgGas = sorted.map { it.gasPpm }.average()
+        val avgPressure = sorted.map { it.pressurePsi }.average()
+        val avgHumidity = sorted.map { it.humidityPct }.average()
+
+        // Trend: first half of this window vs. second half, so the number is
+        // always this period's actual movement, not a fixed guess.
+        val midpoint = sorted.size / 2
+        val firstHalfAvgGas = sorted.take(midpoint).map { it.gasPpm }.average()
+        val secondHalfAvgGas = sorted.drop(midpoint).map { it.gasPpm }.average()
+        if (firstHalfAvgGas > 1.0) {
+            val pctChange = ((secondHalfAvgGas - firstHalfAvgGas) / firstHalfAvgGas) * 100.0
+            if (pctChange > 15.0) {
+                tips.add(
+                    "📈 Gas readings are trending %.0f%% higher than earlier this period — worth checking burner efficiency or a slow leak.".format(
+                        Locale.getDefault(), pctChange
+                    )
+                )
+            } else if (pctChange < -15.0) {
+                tips.add(
+                    "📉 Gas readings have dropped %.0f%% compared to earlier this period.".format(
+                        Locale.getDefault(), -pctChange
+                    )
+                )
+            }
         }
 
-        // 2. Safety Alert
-        if (maxGas > 150) {
-            tips.add("⚠️ Recent spikes detected. Ensure proper ventilation while cooking to maintain air quality.")
+        // Hazard frequency actually observed in this window.
+        val hazardCount = sorted.count { it.hazardLevel != "SAFE" }
+        if (hazardCount > 0) {
+            val pctHazard = (hazardCount.toFloat() / sorted.size) * 100f
+            tips.add(
+                "⚠️ %.0f%% of readings this period (%d of %d) were above safe levels. Ensure proper ventilation.".format(
+                    Locale.getDefault(), pctHazard, hazardCount, sorted.size
+                )
+            )
         }
 
-        // 3. Low Pressure
-        if (avgPressure < 30) {
-            tips.add("🪫 Tank pressure is low. Based on your usage, you may need a refill within 3-5 days.")
+        // Weight-based consumption rate + refill estimate, from actual mass lost
+        // over the actual elapsed time in this window (not a canned "3-5 days").
+        val weightReadings = sorted.filter { it.weightKg > 0.5f }
+        if (weightReadings.size >= 2) {
+            val first = weightReadings.first()
+            val last = weightReadings.last()
+            val elapsedHours = (last.timestamp - first.timestamp) / 3_600_000f
+            val consumedKg = first.weightKg - last.weightKg
+            if (elapsedHours > 0.5f && consumedKg > 0.05f) {
+                val ratePerDay = (consumedKg / elapsedHours) * 24f
+                if (ratePerDay > 0.01f) {
+                    val daysLeft = last.weightKg / ratePerDay
+                    tips.add(
+                        "🪫 At the current usage rate (~%.2f kg/day), your tank has roughly %.1f day(s) left.".format(
+                            Locale.getDefault(), ratePerDay, daysLeft
+                        )
+                    )
+                }
+            }
         }
 
-        // 4. Stable/Efficient
+        // Pressure below the configured minimum expected operating value.
+        if (avgPressure < dev.pressure.devMin) {
+            tips.add(
+                "📉 Average pressure this period (%.1f PSI) is well below the typical operating range — check for a near-empty tank or regulator issue.".format(
+                    Locale.getDefault(), avgPressure
+                )
+            )
+        }
+
+        // Humidity sustained above the configured warning threshold.
+        if (avgHumidity > dev.humidity.warningLevel) {
+            tips.add(
+                "💧 Average humidity (%.0f%%) has been high this period — consider improving ventilation to reduce sensor drift and corrosion risk.".format(
+                    Locale.getDefault(), avgHumidity
+                )
+            )
+        }
+
         if (tips.isEmpty()) {
-            tips.add("✅ Your gas consumption is stable. Keep up the good maintenance!")
+            tips.add(
+                "✅ Readings this period stayed stable (avg %.0f PPM gas, %.1f PSI pressure). Keep up the good maintenance!".format(
+                    Locale.getDefault(), avgGas, avgPressure
+                )
+            )
         }
 
-        // Always add a general tip if there's room
-        if (tips.size < 3) {
-            tips.add("💡 Tip: Always ensure the blue flame on your burner; a yellow flame indicates incomplete combustion.")
-        }
-
-        _usageTips.value = tips
+        _usageTips.value = tips.take(4)
     }
 
     override fun onCleared() {

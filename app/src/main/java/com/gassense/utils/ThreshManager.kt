@@ -8,6 +8,10 @@ import com.gassense.models.SensorThreshold
 object ThresholdManager {
 
     private const val PREFS_NAME = "gassense_thresholds"
+    // Separate file from thresholds — resetToDefaults() (called on every logout, and
+    // from "Reset to Developer Defaults") clears the thresholds file entirely, which
+    // was silently wiping the saved SMS number as an unintended side effect.
+    private const val SMS_PREFS_NAME = "gassense_sms"
     private const val KEY_GAS_WARN = "gas_warning"
     private const val KEY_GAS_CRIT = "gas_critical"
     private const val KEY_PRESS_WARN = "pressure_warning"
@@ -20,6 +24,9 @@ object ThresholdManager {
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun smsPrefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(SMS_PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(context: Context): AppThresholds {
         val p = prefs(context)
@@ -64,13 +71,16 @@ object ThresholdManager {
     }
 
     fun saveSmsNumber(context: Context, number: String) {
-        prefs(context).edit().putString(KEY_SMS_NUMBER, number).apply()
+        smsPrefs(context).edit().putString(KEY_SMS_NUMBER, number).apply()
     }
 
     fun getSmsNumber(context: Context): String {
-        return prefs(context).getString(KEY_SMS_NUMBER, "") ?: ""
+        return smsPrefs(context).getString(KEY_SMS_NUMBER, "") ?: ""
     }
 
+    // Only clears threshold values — the SMS number lives in its own prefs file
+    // now and is untouched by this, since logging out shouldn't silently disable
+    // critical-alert texting.
     fun resetToDefaults(context: Context) {
         prefs(context).edit().clear().apply()
     }

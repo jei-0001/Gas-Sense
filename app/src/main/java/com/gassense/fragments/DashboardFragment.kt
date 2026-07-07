@@ -34,8 +34,6 @@ class DashboardFragment : Fragment() {
     private val authViewModel: AuthViewModel by activityViewModels()
     private val sensorViewModel: SensorViewModel by activityViewModels()
 
-    private var lastDialogHazardLevel = "SAFE"
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -54,7 +52,8 @@ class DashboardFragment : Fragment() {
                 authViewModel.userProfile.collect { profile ->
                     val deviceId = profile?.deviceId ?: "DEV-TEST-0001"
                     binding.chipDeviceSwitcher.text = if (profile != null) profile.fullName + "'s Tank" else deviceId
-                    sensorViewModel.startListening(deviceId)
+                    // Listening itself is started at the Activity level (MainActivity) so
+                    // it isn't tied to this Fragment's view lifecycle.
                 }
             }
         }
@@ -106,7 +105,10 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    private fun showAlertDialog(isWarning: Boolean, liveData: LiveSensorData? = null) {
+    // Demo-only — binds the static placeholder values baked into the dialog layouts.
+    // The real hazard-triggered popup (using live readings) lives in MainActivity now,
+    // so it fires regardless of which bottom-nav tab is open.
+    private fun showAlertDialog(isWarning: Boolean) {
         val dialog = BottomSheetDialog(requireContext())
         val layoutRes = if (isWarning) R.layout.dialog_warning_alert else R.layout.dialog_critical_alert
         val sheetView = layoutInflater.inflate(layoutRes, null)
@@ -114,19 +116,6 @@ class DashboardFragment : Fragment() {
         dialog.behavior.apply {
             skipCollapsed = true
             state = BottomSheetBehavior.STATE_EXPANDED
-        }
-
-        if (liveData != null) {
-            // Real hazard alert — bind actual readings instead of the static demo placeholders.
-            sheetView.findViewById<android.widget.TextView>(R.id.tvSimulationBadge)?.visibility = View.GONE
-            sheetView.findViewById<android.widget.TextView>(R.id.tvGasReading)?.text =
-                String.format(Locale.getDefault(), "%.1f %%LEL", liveData.lelPercent)
-            sheetView.findViewById<android.widget.TextView>(R.id.tvPressureReading)?.text =
-                String.format(Locale.getDefault(), "%.0f PSI", liveData.pressurePsi)
-            sheetView.findViewById<android.widget.TextView>(R.id.tvTempReading)?.text =
-                String.format(Locale.getDefault(), "%.1f °C", liveData.tempC)
-            sheetView.findViewById<android.widget.TextView>(R.id.tvHumidityReading)?.text =
-                String.format(Locale.getDefault(), "%.0f %%", liveData.humidityPct)
         }
 
         if (isWarning) {
@@ -174,14 +163,6 @@ class DashboardFragment : Fragment() {
             if (data.autoShutoff) View.VISIBLE else View.GONE
 
         updateStatusBadge(data.hazardLevel)
-
-        // Show alert dialog on hazard level escalation
-        if (data.hazardLevel != lastDialogHazardLevel &&
-            (data.hazardLevel == "WARNING" || data.hazardLevel == "CRITICAL")
-        ) {
-            showAlertDialog(isWarning = data.hazardLevel == "WARNING", liveData = data)
-        }
-        lastDialogHazardLevel = data.hazardLevel
     }
 
     private fun showOfflineState(timestamp: Long = 0L) {
@@ -216,7 +197,6 @@ class DashboardFragment : Fragment() {
         binding.progressTankLevel.progress = 0
         binding.tvTankPercentage.text = "--%"
         binding.bannerAutoShutoff.visibility = View.GONE
-        lastDialogHazardLevel = "SAFE"
     }
 
     private fun calculateTankLevel(pressure: Float): Int {

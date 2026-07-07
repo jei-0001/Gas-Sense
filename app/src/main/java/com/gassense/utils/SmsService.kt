@@ -31,23 +31,30 @@ object SmsService {
                 .post(body)
                 .build()
 
-            val success = try {
+            // response.isSuccessful only means Semaphore's HTTP layer accepted the
+            // request — it can still be 200 while the response body reports a
+            // rejection (no credits, unapproved sender name, etc.), so the raw body
+            // is what actually tells us whether the text has a shot at being delivered.
+            var httpOk = false
+            val responseBody = try {
                 val response = client.newCall(request).execute()
-                response.isSuccessful
+                httpOk = response.isSuccessful
+                response.body?.string() ?: ""
             } catch (e: Exception) {
-                false
+                "exception: ${e.message}"
             }
 
-            logToFirebase(recipientNumber, deviceId, success)
-            success
+            logToFirebase(recipientNumber, deviceId, httpOk, responseBody)
+            httpOk
         }
 
-    private fun logToFirebase(recipient: String, deviceId: String, success: Boolean) {
+    private fun logToFirebase(recipient: String, deviceId: String, httpOk: Boolean, responseBody: String) {
         val log = mapOf(
             "recipient" to recipient,
             "message" to ALERT_MESSAGE,
             "timestamp" to System.currentTimeMillis(),
-            "status" to if (success) "sent" else "failed"
+            "status" to if (httpOk) "sent" else "failed",
+            "apiResponse" to responseBody
         )
         database.getReference("devices/$deviceId/smsLogs").push().setValue(log)
     }

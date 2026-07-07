@@ -9,8 +9,10 @@ import com.gassense.R
 import com.gassense.databinding.ItemAlertBinding
 import com.gassense.models.AlertItem
 
-class AlertsAdapter(private val alerts: List<AlertItem>) :
-    RecyclerView.Adapter<AlertsAdapter.AlertViewHolder>() {
+class AlertsAdapter(
+    private val alerts: List<AlertItem>,
+    private val onItemClick: (AlertItem) -> Unit
+) : RecyclerView.Adapter<AlertsAdapter.AlertViewHolder>() {
 
     inner class AlertViewHolder(val binding: ItemAlertBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -24,10 +26,12 @@ class AlertsAdapter(private val alerts: List<AlertItem>) :
         val alert = alerts[position]
         val ctx = holder.binding.root.context
 
+        holder.itemView.setOnClickListener { onItemClick(alert) }
+
         with(holder.binding) {
-            tvAlertTitle.text = alert.title
-            tvAlertDesc.text = alert.description
-            tvTimestamp.text = alert.timestamp
+            tvAlertTitle.text = alert.title()
+            tvAlertDesc.text = alert.description()
+            tvTimestamp.text = alert.formattedTimestamp()
 
             when (alert.severityEnum()) {
                 AlertItem.Severity.CRITICAL -> {
@@ -53,7 +57,7 @@ class AlertsAdapter(private val alerts: List<AlertItem>) :
                 }
             }
 
-            chipAutoShutoff.visibility = if (alert.autoShutoffTriggered) View.VISIBLE else View.GONE
+            chipAutoShutoff.visibility = if (alert.isAutoShutoff()) View.VISIBLE else View.GONE
         }
     }
 
