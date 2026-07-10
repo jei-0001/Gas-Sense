@@ -54,7 +54,7 @@ class DashboardFragment : Fragment() {
                 authViewModel.userProfile.collect { profile ->
                     val deviceId = profile?.deviceId ?: "DEV-TEST-0001"
                     currentDeviceId = deviceId
-                    binding.chipDeviceSwitcher.text = if (profile != null) profile.fullName + "'s Tank" else deviceId
+                    binding.chipDeviceSwitcher.text = getString(R.string.tank_label)
                     // Listening itself is started at the Activity level (MainActivity) so
                     // it isn't tied to this Fragment's view lifecycle.
                 }

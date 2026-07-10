@@ -33,23 +33,16 @@ class MainActivity : AppCompatActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private val sensorViewModel: SensorViewModel by viewModels()
 
-    // Tracks the last hazard level we've already popped a dialog for, so this
-    // survives bottom-nav tab switches instead of resetting with each Fragment's
-    // view (which is what caused the popup to only ever appear on Dashboard).
-    private var lastDialogHazardLevel = "SAFE"
-
-    // Once the WARNING sheet has been dismissed for the current escalation episode, it
-    // won't reopen until the hazard genuinely clears back to SAFE (a new episode) —
-    // prevents it from spuriously popping back up on a brief WARNING boundary flicker
-    // shortly after the user dismissed it. CRITICAL's own re-fire behavior is untouched.
-    private var warningDialogDismissedForEpisode = false
-
-    // CRITICAL is a live emergency, not a one-time notice — it keeps re-showing every
-    // CRITICAL_DIALOG_REPEAT_MS for as long as the reading stays CRITICAL, even after
-    // the user has acknowledged it once, instead of going silent for the rest of the
-    // episode.
-    private var lastCriticalDialogShownAtMs = 0L
-    private val CRITICAL_DIALOG_REPEAT_MS = 30_000L
+    // The single hazard dialog currently on screen, if any. Kept at the Activity level
+    // so it survives bottom-nav tab switches. Instead of popping a new BottomSheetDialog
+    // for every qualifying sensor update, we keep this one instance around and just
+    // refresh its readings live while the hazard level stays the same — a new dialog is
+    // only created when the level actually transitions (SAFE->WARNING, WARNING<->CRITICAL).
+    // If the user dismisses/acknowledges it, activeHazardDialog goes back to null and it
+    // stays closed until lastSeenHazardLevel changes again (a fresh episode).
+    private var activeHazardDialog: BottomSheetDialog? = null
+    private var activeHazardDialogView: View? = null
+    private var lastSeenHazardLevel = "SAFE"
 
     private var currentDeviceId = "DEV-TEST-0001"
 
@@ -124,35 +117,48 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkHazardEscalation(data: LiveSensorData) {
         val isStale = data.timestamp > 0 && (System.currentTimeMillis() - data.timestamp) > 60_000
-        android.util.Log.d("GasSenseDebug", "checkHazardEscalation: hazardLevel=${data.hazardLevel} lastDialogHazardLevel=$lastDialogHazardLevel timestamp=${data.timestamp} now=${System.currentTimeMillis()} isStale=$isStale")
         if (data.timestamp == 0L || isStale) {
-            android.util.Log.d("GasSenseDebug", "checkHazardEscalation: SKIPPED (stale/no timestamp)")
-            lastDialogHazardLevel = "SAFE"
-            warningDialogDismissedForEpisode = false
+            dismissActiveHazardDialog()
+            lastSeenHazardLevel = "SAFE"
             return
         }
 
-        if (data.hazardLevel == "SAFE") {
-            // Hazard has genuinely cleared — re-arm the WARNING sheet for the next episode.
-            warningDialogDismissedForEpisode = false
+        val level = data.hazardLevel
+        val levelChanged = level != lastSeenHazardLevel
+        lastSeenHazardLevel = level
+
+        when {
+            level == "SAFE" -> dismissActiveHazardDialog()
+            levelChanged -> {
+                // Genuine transition into (or between) WARNING/CRITICAL — always show a
+                // fresh sheet for the new level, replacing whatever was there before.
+                dismissActiveHazardDialog()
+                showHazardDialog(isWarning = level == "WARNING", data)
+            }
+            activeHazardDialog != null -> {
+                // Same level as last time and the sheet is still open — just refresh the
+                // numbers instead of spawning another dialog.
+                activeHazardDialogView?.let { updateHazardDialogReadings(it, data) }
+            }
+            // else: same level, but the user already dismissed/acknowledged it — stay closed.
         }
+    }
 
-        val shouldShowWarning = data.hazardLevel == "WARNING" &&
-            data.hazardLevel != lastDialogHazardLevel &&
-            !warningDialogDismissedForEpisode
+    private fun dismissActiveHazardDialog() {
+        activeHazardDialog?.dismiss()
+        activeHazardDialog = null
+        activeHazardDialogView = null
+    }
 
-        val now = System.currentTimeMillis()
-        val enteredCritical = data.hazardLevel == "CRITICAL" && data.hazardLevel != lastDialogHazardLevel
-        val criticalStillOngoing = data.hazardLevel == "CRITICAL" &&
-            (now - lastCriticalDialogShownAtMs) >= CRITICAL_DIALOG_REPEAT_MS
-        val shouldShowCritical = enteredCritical || criticalStillOngoing
-        android.util.Log.d("GasSenseDebug", "checkHazardEscalation: enteredCritical=$enteredCritical criticalStillOngoing=$criticalStillOngoing shouldShowWarning=$shouldShowWarning shouldShowCritical=$shouldShowCritical")
-
-        if (shouldShowWarning || shouldShowCritical) {
-            showHazardDialog(isWarning = data.hazardLevel == "WARNING", data)
-            if (data.hazardLevel == "CRITICAL") lastCriticalDialogShownAtMs = now
-        }
-        lastDialogHazardLevel = data.hazardLevel
+    private fun updateHazardDialogReadings(sheetView: View, data: LiveSensorData) {
+        sheetView.findViewById<android.widget.TextView>(R.id.tvGasReading)?.text =
+            String.format(Locale.getDefault(), "%.1f %%LEL", data.lelPercent)
+        sheetView.findViewById<android.widget.TextView>(R.id.tvPressureReading)?.text =
+            String.format(Locale.getDefault(), "%.0f PSI", data.pressurePsi)
+        sheetView.findViewById<android.widget.TextView>(R.id.tvTempReading)?.text =
+            String.format(Locale.getDefault(), "%.1f °C", data.tempC)
+        sheetView.findViewById<android.widget.TextView>(R.id.tvHumidityReading)?.text =
+            String.format(Locale.getDefault(), "%.0f %%", data.humidityPct)
     }
 
     private fun showHazardDialog(isWarning: Boolean, data: LiveSensorData) {
@@ -166,21 +172,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         sheetView.findViewById<View>(R.id.tvSimulationBadge)?.visibility = View.GONE
-        sheetView.findViewById<android.widget.TextView>(R.id.tvGasReading)?.text =
-            String.format(Locale.getDefault(), "%.1f %%LEL", data.lelPercent)
-        sheetView.findViewById<android.widget.TextView>(R.id.tvPressureReading)?.text =
-            String.format(Locale.getDefault(), "%.0f PSI", data.pressurePsi)
-        sheetView.findViewById<android.widget.TextView>(R.id.tvTempReading)?.text =
-            String.format(Locale.getDefault(), "%.1f °C", data.tempC)
-        sheetView.findViewById<android.widget.TextView>(R.id.tvHumidityReading)?.text =
-            String.format(Locale.getDefault(), "%.0f %%", data.humidityPct)
+        updateHazardDialogReadings(sheetView, data)
 
         if (isWarning) {
             listOf(R.id.btnDismiss, R.id.btnViewDetails).forEach { id ->
-                sheetView.findViewById<View>(id)?.setOnClickListener {
-                    warningDialogDismissedForEpisode = true
-                    dialog.dismiss()
-                }
+                sheetView.findViewById<View>(id)?.setOnClickListener { dialog.dismiss() }
             }
         } else {
             sheetView.findViewById<View>(R.id.btnAcknowledge)?.setOnClickListener {
@@ -189,6 +185,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        dialog.setOnDismissListener {
+            if (activeHazardDialog === dialog) {
+                activeHazardDialog = null
+                activeHazardDialogView = null
+            }
+        }
+
+        activeHazardDialog = dialog
+        activeHazardDialogView = sheetView
         dialog.show()
     }
 

@@ -83,7 +83,7 @@
                         android:id="@+id/chipDeviceSwitcher"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:text="Kitchen Tank"
+                        android:text="@string/tank_label"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp"
                         android:clickable="false"

@@ -39,6 +39,17 @@ class HistoryFragment : Fragment() {
     // Chip default-checked in the layout is Weekly — keep this in sync with that.
     private var selectedPeriod = Period.WEEKLY
 
+    // A period only "earns" its own chart once the actual data spans meaningfully more
+    // than the tier below it — otherwise Monthly/Quarterly/Yearly would each just redraw
+    // whatever short window Weekly already has (same points, coarser label format),
+    // which looks identical to Weekly instead of showing there's not enough history yet.
+    private val Period.minimumSpanMillis: Long
+        get() {
+            val tiers = Period.entries
+            val index = tiers.indexOf(this)
+            return if (index <= 0) 0L else tiers[index - 1].windowMillis
+        }
+
     // Full set most recently pushed by Firebase (up to the last 500 raw snapshots the
     // firmware has sent) — re-filtered locally whenever the user changes the period chip,
     // so switching chips doesn't need to wait on a new network push.
@@ -104,9 +115,16 @@ class HistoryFragment : Fragment() {
         val filtered = allRecords.filter { it.timestamp >= cutoff }.sortedBy { it.timestamp }
 
         // The firmware only retains the last ~500 raw snapshots (a few hours), so a
-        // Monthly/Quarterly/Yearly selection can legitimately have too little data to
-        // plot yet — show that honestly instead of drawing a misleading near-empty chart.
-        if (filtered.size < 2) {
+        // Weekly/Monthly/Quarterly/Yearly selection can legitimately have too little
+        // data to plot yet — show that honestly instead of drawing a misleading chart.
+        // Beyond just needing >=2 points, the actual span the data covers has to clear
+        // this period's minimumSpanMillis (the window of the tier below it), otherwise
+        // it would just redraw the exact same points as that lower tier, still labeled
+        // as if it were a full week/month/quarter/year of history.
+        val actualSpanMillis = if (filtered.size >= 2) filtered.last().timestamp - filtered.first().timestamp else 0L
+        val hasEnoughSpread = actualSpanMillis >= selectedPeriod.minimumSpanMillis
+
+        if (filtered.size < 2 || !hasEnoughSpread) {
             binding.lineChart.visibility = View.GONE
             showPlaceholders(hasAnyData = true)
             return
