@@ -4,6 +4,12 @@ import com.google.firebase.database.IgnoreExtraProperties
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
+
+// GasSense is a fixed-location installation (Philippines) — alert/history times
+// should reflect the installation site's local time regardless of the viewing
+// phone's own system timezone (which may be unset/wrong, especially on emulators).
+val DEVICE_TIME_ZONE: TimeZone = TimeZone.getTimeZone("Asia/Manila")
 
 data class SensorData(
     val gasLel: Float,
@@ -54,16 +60,11 @@ data class AlertItem(
 
     fun formattedTimestamp(): String {
         if (timestampMs <= 0L) return ""
-        return SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestampMs))
+        val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+        formatter.timeZone = DEVICE_TIME_ZONE
+        return formatter.format(Date(timestampMs))
     }
 }
-
-data class DeviceItem(
-    val name: String,
-    val deviceId: String,
-    val isOnline: Boolean,
-    val lastSynced: String
-)
 
 data class SensorThreshold(
     val warningLevel: Int,
@@ -86,11 +87,23 @@ data class AppThresholds(
                 devMin = 5,
                 devMax = 50
             ),
+            // Sensor is a 0-0.8 MPa (~116 psi) rated transducer — devMax is set just
+            // under that real ceiling. Bench-tested fuel is Petron Gasul (confirmed
+            // 37.2% propane / 62.5% butane per its Product Data Sheet), whose vapor
+            // pressure runs ~64-108 psi across a 20-40 degC Philippine ambient range
+            // (NIST WebBook Antoine-equation estimate, cross-validated within 4% of
+            // Petron's measured RVP — see PRESSURE_PSI_MAX comment in the firmware).
+            // warningLevel sits just above that normal hot-day ceiling (~108 psi);
+            // criticalLevel leaves a few psi of margin below the sensor's real 116 psi
+            // rating. Note pressure alone isn't a strong leak signal for LPG (vapor
+            // pressure stays roughly flat regardless of fill level) — these thresholds
+            // mainly guard against unexplained overpressure/sensor-ceiling risk, not
+            // leak detection, which the firmware's weight-based fusion logic handles.
             pressure = SensorThreshold(
-                warningLevel = 100,
-                criticalLevel = 120,
+                warningLevel = 108,
+                criticalLevel = 113,
                 devMin = 50,
-                devMax = 150
+                devMax = 115
             ),
             temperature = SensorThreshold(
                 warningLevel = 40,

@@ -18,6 +18,7 @@ import com.gassense.viewmodels.LiveSensorData
 import com.gassense.viewmodels.SensorViewModel
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -34,6 +35,8 @@ class DashboardFragment : Fragment() {
     private val authViewModel: AuthViewModel by activityViewModels()
     private val sensorViewModel: SensorViewModel by activityViewModels()
 
+    private var currentDeviceId = "DEV-TEST-0001"
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -44,13 +47,13 @@ class DashboardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         thresholds = ThresholdManager.load(requireContext())
-        setupDeviceSwitcher()
         setupDemoButtons()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 authViewModel.userProfile.collect { profile ->
                     val deviceId = profile?.deviceId ?: "DEV-TEST-0001"
+                    currentDeviceId = deviceId
                     binding.chipDeviceSwitcher.text = if (profile != null) profile.fullName + "'s Tank" else deviceId
                     // Listening itself is started at the Activity level (MainActivity) so
                     // it isn't tied to this Fragment's view lifecycle.
@@ -80,20 +83,6 @@ class DashboardFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         thresholds = ThresholdManager.load(requireContext())
-    }
-
-    private fun setupDeviceSwitcher() {
-        binding.chipDeviceSwitcher.setOnClickListener {
-            showDeviceBottomSheet()
-        }
-    }
-
-    private fun showDeviceBottomSheet() {
-        val dialog = BottomSheetDialog(requireContext())
-        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_device_switcher, null)
-        dialog.setContentView(sheetView)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.show()
     }
 
     private fun setupDemoButtons() {
@@ -126,8 +115,6 @@ class DashboardFragment : Fragment() {
         } else {
             sheetView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnAcknowledge)
                 ?.setOnClickListener { dialog.dismiss() }
-            sheetView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewDetails)
-                ?.setOnClickListener { dialog.dismiss() }
         }
         dialog.show()
     }
@@ -136,6 +123,7 @@ class DashboardFragment : Fragment() {
         val currentTime = System.currentTimeMillis()
         // Threshold: 60 seconds of inactivity = Offline
         val isStale = data.timestamp > 0 && (currentTime - data.timestamp) > 60_000
+        android.util.Log.d("GasSenseDebug", "updateSensorDisplay: pressurePsi=${data.pressurePsi} timestamp=${data.timestamp} currentTime=$currentTime diff=${currentTime - data.timestamp} isStale=$isStale")
 
         if (data.timestamp == 0L || isStale) {
             showOfflineState(data.timestamp)
@@ -153,15 +141,23 @@ class DashboardFragment : Fragment() {
         binding.tvTempValue.text = String.format(Locale.getDefault(), "%.1f", data.tempC)
         binding.tvHumidityValue.text = String.format(Locale.getDefault(), "%.1f", data.humidityPct)
         
-        // Estimated tank level calculation (simplified)
-        val tankLevel = calculateTankLevel(data.pressurePsi)
-        binding.progressTankLevel.progress = tankLevel
-        binding.tvTankPercentage.text = String.format(Locale.getDefault(), "%d%%", tankLevel)
+        // Real load-cell reading — see cardTankLevel's layout comment for why this
+        // isn't a fill percentage (that needs a calibrated empty/full reference mass
+        // the app doesn't have yet; pressure is not a valid fill-level proxy for LPG).
+        binding.tvTankWeight.text = String.format(Locale.getDefault(), "%.1f kg", data.weightKg)
 
-        // Shutoff banner
+        // Pressure-corroborated near-empty check — weight stays the primary quantity
+        // signal, this is a secondary confirmation (see firmware's updateNearEmptyCorroboration()).
+        binding.tvNearEmptyNotice.visibility = if (data.nearEmptyCorroborated) View.VISIBLE else View.GONE
+
+        // Hazard latch banner — visible until the user acknowledges a CRITICAL event
         binding.bannerAutoShutoff.visibility =
-            if (data.autoShutoff) View.VISIBLE else View.GONE
+            if (data.hazardLatched) View.VISIBLE else View.GONE
+        binding.btnBannerAcknowledge.setOnClickListener {
+            sensorViewModel.acknowledgeCritical(currentDeviceId)
+        }
 
+        updateManualValveSwitch(data)
         updateStatusBadge(data.hazardLevel)
     }
 
@@ -194,15 +190,48 @@ class DashboardFragment : Fragment() {
         binding.tvPressureValue.text = "--"
         binding.tvTempValue.text = "--"
         binding.tvHumidityValue.text = "--"
-        binding.progressTankLevel.progress = 0
-        binding.tvTankPercentage.text = "--%"
+        binding.tvTankWeight.text = "-- kg"
+        binding.tvNearEmptyNotice.visibility = View.GONE
         binding.bannerAutoShutoff.visibility = View.GONE
+        binding.switchManualValve.setOnCheckedChangeListener(null)
+        binding.switchManualValve.isEnabled = false
     }
 
-    private fun calculateTankLevel(pressure: Float): Int {
-        // Simple linear estimation based on standard propane pressure range (e.g. 0-200 PSI)
-        val maxPressure = 150f
-        return (pressure / maxPressure * 100).toInt().coerceIn(0, 100)
+    private fun updateManualValveSwitch(data: LiveSensorData) {
+        binding.switchManualValve.setOnCheckedChangeListener(null)
+        binding.switchManualValve.isChecked = data.valveOverride == "closed"
+        // A real CRITICAL reading always wins in firmware, and a latched hazard can
+        // only be cleared via Acknowledge — so a manual toggle would have no effect
+        // on the physical valve in either case. Disable it to avoid confusion.
+        binding.switchManualValve.isEnabled = data.hazardLevel != "CRITICAL" && !data.hazardLatched
+        attachManualValveListener()
+    }
+
+    private fun attachManualValveListener() {
+        binding.switchManualValve.setOnCheckedChangeListener { switchView, isChecked ->
+            switchView.setOnCheckedChangeListener(null) // paused while the user confirms
+
+            val title = if (isChecked) "Close gas valve?" else "Reopen gas valve?"
+            val message = if (isChecked) {
+                "This will manually shut off the gas supply. Make sure it's safe to do so."
+            } else {
+                "This will reopen the gas supply. Make sure the area has been checked and it's safe."
+            }
+
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(if (isChecked) "Close valve" else "Reopen valve") { _, _ ->
+                    sensorViewModel.setValveOverride(currentDeviceId, isChecked)
+                    attachManualValveListener()
+                }
+                .setNegativeButton("Cancel") { _, _ ->
+                    switchView.isChecked = !isChecked
+                    attachManualValveListener()
+                }
+                .setCancelable(false)
+                .show()
+        }
     }
 
     private fun updateStatusBadge(hazardLevel: String) {

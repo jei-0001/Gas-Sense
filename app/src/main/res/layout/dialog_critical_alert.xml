@@ -289,23 +289,10 @@
         android:layout_marginBottom="32dp">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnViewDetails"
-            style="@style/GasSense.Button.Outlined"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/button_height"
-            android:layout_weight="1"
-            android:text="@string/btn_view_details"
-            app:strokeColor="@color/critical_red"
-            android:textColor="@color/critical_red"
-            android:layout_marginEnd="8dp" />
-
-        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAcknowledge"
             style="@style/GasSense.Button.Critical"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="@dimen/button_height"
-            android:layout_weight="1"
-            android:text="@string/btn_acknowledge"
-            android:layout_marginStart="8dp" />
+            android:text="@string/btn_acknowledge" />
     </LinearLayout>
 </LinearLayout>

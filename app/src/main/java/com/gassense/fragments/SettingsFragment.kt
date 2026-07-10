@@ -8,8 +8,6 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.fragment.findNavController
-import com.gassense.R
 import com.gassense.activities.AuthActivity
 import com.gassense.databinding.FragmentSettingsBinding
 import com.gassense.models.AppThresholds
@@ -43,10 +41,8 @@ class SettingsFragment : Fragment() {
         currentThresholds = ThresholdManager.load(requireContext())
         populateFields(currentThresholds)
         binding.etSmsNumber.setText(ThresholdManager.getSmsNumber(requireContext()))
-
-        binding.cardMyDevices.setOnClickListener {
-            findNavController().navigate(R.id.action_settings_to_devices)
-        }
+        binding.switchPushNotif.isChecked = ThresholdManager.isPushNotificationsEnabled(requireContext())
+        binding.switchSmsNotif.isChecked = ThresholdManager.isSmsNotificationsEnabled(requireContext())
 
         binding.btnApplyThresholds.setOnClickListener {
             applyThresholds()
@@ -63,6 +59,24 @@ class SettingsFragment : Fragment() {
             Toast.makeText(
                 context,
                 if (isChecked) "AutoShutoff enabled" else "AutoShutoff disabled",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        binding.switchPushNotif.setOnCheckedChangeListener { _, isChecked ->
+            ThresholdManager.setPushNotificationsEnabled(requireContext(), isChecked)
+            Toast.makeText(
+                context,
+                if (isChecked) "Push notifications enabled" else "Push notifications disabled",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        binding.switchSmsNotif.setOnCheckedChangeListener { _, isChecked ->
+            ThresholdManager.setSmsNotificationsEnabled(requireContext(), isChecked)
+            Toast.makeText(
+                context,
+                if (isChecked) "SMS notifications enabled" else "SMS notifications disabled",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -153,6 +167,7 @@ class SettingsFragment : Fragment() {
             return
         }
         ThresholdManager.saveSmsNumber(requireContext(), smsNumber)
+        binding.switchSmsNotif.isChecked = ThresholdManager.isSmsNotificationsEnabled(requireContext())
         authViewModel.userProfile.value?.deviceId?.let { deviceId ->
             database.getReference("devices/$deviceId/config/smsRecipient").setValue(smsNumber)
         }

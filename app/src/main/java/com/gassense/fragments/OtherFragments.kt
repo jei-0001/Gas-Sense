@@ -5,23 +5,16 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.gassense.R
 import com.gassense.activities.MainActivity
-import com.gassense.adapters.DevicesAdapter
 import com.gassense.databinding.FragmentRegisterBinding
 import com.gassense.databinding.FragmentForgotPasswordBinding
-import com.gassense.databinding.FragmentDeviceManagementBinding
-import com.gassense.databinding.FragmentAddDeviceBinding
-import com.gassense.databinding.FragmentQrScannerBinding
-import com.gassense.models.DeviceItem
 import com.gassense.viewmodels.AuthState
 import com.gassense.viewmodels.AuthViewModel
 import com.google.android.material.snackbar.Snackbar
@@ -31,6 +24,12 @@ class RegisterFragment : Fragment() {
     private var _binding: FragmentRegisterBinding? = null
     private val binding get() = _binding!!
     private val viewModel: AuthViewModel by activityViewModels()
+
+    // This is a single-prototype-device build — there's no device management/QR flow to
+    // supply a Device ID, so registration links every account to the one physical unit.
+    // Matches the ESP32 firmware's own DEVICE_ID constant and the "DEV-TEST-0001" fallback
+    // used elsewhere in the app (MainActivity, DashboardFragment) when no profile is loaded yet.
+    private val prototypeDeviceId = "DEV-TEST-0001"
 
     override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
         _binding = FragmentRegisterBinding.inflate(inflater, c, false)
@@ -47,11 +46,6 @@ class RegisterFragment : Fragment() {
                         handleAuthState(state)
                     }
                 }
-                launch {
-                    viewModel.scannedDeviceId.collect { id ->
-                        id?.let { binding.etDeviceId.setText(it) }
-                    }
-                }
             }
         }
 
@@ -59,11 +53,10 @@ class RegisterFragment : Fragment() {
             val name = binding.etFullName.text.toString().trim()
             val email = binding.etEmail.text.toString().trim()
             val mobile = binding.etMobile.text.toString().trim()
-            val deviceId = binding.etDeviceId.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
             val confirmPassword = binding.etConfirmPassword.text.toString().trim()
 
-            if (listOf(name, email, mobile, deviceId, password, confirmPassword).any { it.isEmpty() }) {
+            if (listOf(name, email, mobile, password, confirmPassword).any { it.isEmpty() }) {
                 Snackbar.make(binding.root, "Please fill in all fields", Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
@@ -78,10 +71,7 @@ class RegisterFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            viewModel.register(name, email, mobile, deviceId, password)
-        }
-        binding.tvScanQr.setOnClickListener {
-            findNavController().navigate(R.id.action_register_to_qr)
+            viewModel.register(name, email, mobile, prototypeDeviceId, password)
         }
         binding.tvLogin.setOnClickListener {
             findNavController().navigate(R.id.action_register_to_login)
@@ -99,11 +89,7 @@ class RegisterFragment : Fragment() {
             }
             is AuthState.Error -> {
                 binding.btnCreateAccount.isEnabled = true
-                if (state.isFieldSpecific) {
-                    binding.tilDeviceId.error = state.message
-                } else {
-                    Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG).show()
-                }
+                Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG).show()
             }
             else -> binding.btnCreateAccount.isEnabled = true
         }
@@ -148,108 +134,6 @@ class ForgotPasswordFragment : Fragment() {
         }
         binding.tvBackToLogin.setOnClickListener {
             findNavController().navigate(R.id.action_forgot_to_login)
-        }
-    }
-
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
-}
-
-class DeviceManagementFragment : Fragment() {
-    private var _binding: FragmentDeviceManagementBinding? = null
-    private val binding get() = _binding!!
-    private val authViewModel: AuthViewModel by activityViewModels()
-
-    override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
-        _binding = FragmentDeviceManagementBinding.inflate(inflater, c, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        
-        binding.rvDevices.layoutManager = LinearLayoutManager(context)
-        
-        authViewModel.fetchProfile()
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                authViewModel.userProfile.collect { profile ->
-                    if (profile != null) {
-                        val devices = listOf(
-                            DeviceItem(
-                                name = profile.fullName + "'s Unit",
-                                deviceId = profile.deviceId,
-                                isOnline = true, // We assume true for simplicity or fetch actual status
-                                lastSynced = "Just now"
-                            )
-                        )
-                        binding.rvDevices.adapter = DevicesAdapter(devices)
-                    } else {
-                        binding.rvDevices.adapter = DevicesAdapter(emptyList())
-                    }
-                }
-            }
-        }
-
-        binding.btnAddDevice.setOnClickListener {
-            findNavController().navigate(R.id.action_devices_to_add)
-        }
-    }
-
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
-}
-
-class AddDeviceFragment : Fragment() {
-    private var _binding: FragmentAddDeviceBinding? = null
-    private val binding get() = _binding!!
-
-    override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
-        _binding = FragmentAddDeviceBinding.inflate(inflater, c, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
-        binding.cardScanQr.setOnClickListener {
-            findNavController().navigate(R.id.action_add_to_qr)
-        }
-        binding.cardEnterManually.setOnClickListener {
-            binding.tilDeviceName.requestFocus()
-        }
-        binding.btnRegisterDevice.setOnClickListener {
-            val name = binding.etDeviceName.text.toString()
-            if (name.isEmpty()) {
-                binding.tilDeviceName.error = "Device name is required"
-                return@setOnClickListener
-            }
-            Toast.makeText(context, "Device '$name' registered!", Toast.LENGTH_SHORT).show()
-            findNavController().navigateUp()
-        }
-    }
-
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
-}
-
-class QrScannerFragment : Fragment() {
-    private var _binding: FragmentQrScannerBinding? = null
-    private val binding get() = _binding!!
-    private val viewModel: AuthViewModel by activityViewModels()
-
-    override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
-        _binding = FragmentQrScannerBinding.inflate(inflater, c, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
-        binding.tvEnterManually.setOnClickListener { findNavController().navigateUp() }
-
-        // Simulation of QR scan for demonstration
-        binding.root.setOnClickListener {
-            viewModel.setScannedDeviceId("GS-SCAN-123")
-            findNavController().navigateUp()
         }
     }
 

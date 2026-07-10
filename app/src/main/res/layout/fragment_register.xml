@@ -104,55 +104,6 @@
                 android:imeOptions="actionNext" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Device ID -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilDeviceId"
-            style="@style/GasSense.TextInputLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/device_id"
-            android:layout_marginTop="12dp"
-            app:helperText="@string/device_id_helper"
-            app:helperTextTextColor="@color/text_hint"
-            app:startIconDrawable="@drawable/ic_device"
-            app:startIconTint="@color/text_secondary">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etDeviceId"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textCapCharacters"
-                android:textColor="@color/text_primary"
-                android:imeOptions="actionNext" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Scan QR Link -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_gravity="start"
-            android:layout_marginTop="4dp"
-            android:layout_marginStart="4dp">
-
-            <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:src="@drawable/ic_qr_code"
-                app:tint="#4A90D9" />
-
-            <TextView
-                android:id="@+id/tvScanQr"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:text="@string/scan_qr_instead"
-                android:textColor="#4A90D9"
-                android:textSize="12sp"
-                android:gravity="center_vertical"
-                android:paddingStart="6dp" />
-        </LinearLayout>
-
         <!-- Password -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilPassword"
@@ -160,7 +111,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/password"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="12dp"
             app:startIconDrawable="@drawable/ic_lock"
             app:startIconTint="@color/text_secondary"
             app:endIconMode="password_toggle"

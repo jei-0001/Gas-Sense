@@ -86,6 +86,8 @@
                         android:text="Kitchen Tank"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp"
+                        android:clickable="false"
+                        android:focusable="false"
                         app:chipBackgroundColor="@color/card_dark"
                         app:chipStrokeColor="@color/outline_color"
                         app:chipStrokeWidth="1dp"
@@ -141,7 +143,7 @@
                 </androidx.cardview.widget.CardView>
             </FrameLayout>
 
-            <!-- Auto-Shutoff Banner -->
+            <!-- Hazard Latch Banner — visible while the valve is held closed pending acknowledgment -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/bannerAutoShutoff"
                 android:layout_width="match_parent"
@@ -157,39 +159,53 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
+                    android:orientation="vertical"
                     android:padding="14dp">
 
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_valve"
-                        app:tint="@color/critical_red" />
-
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="12dp">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Gas supply automatically shut off"
-                            android:textColor="@color/critical_red"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_valve"
+                            app:tint="@color/critical_red" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="Valve closed by system. Ventilate the area before reopening."
-                            android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
-                            android:layout_marginTop="2dp" />
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Awaiting acknowledgment"
+                                android:textColor="@color/critical_red"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Valve held closed. Check the device and LPG connection, then acknowledge to reopen."
+                                android:textColor="@color/text_secondary"
+                                android:textSize="11sp"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
                     </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnBannerAcknowledge"
+                        style="@style/GasSense.Button.Critical"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/btn_acknowledge" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -464,7 +480,11 @@
 
             </GridLayout>
 
-            <!-- Tank Level Card -->
+            <!-- Weight Card — real load-cell reading (kg). A true "tank level %" needs a
+                 calibrated empty/full reference mass the app doesn't have yet, so this
+                 shows the measured weight directly instead of a fabricated percentage.
+                 tvNearEmptyNotice is a secondary check: the pressure sensor corroborates
+                 (or doesn't) that the tank is genuinely running low — see DashboardFragment. -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardTankLevel"
                 style="@style/GasSense.Card"
@@ -488,51 +508,83 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/tank_level_label"
+                            android:text="@string/tank_weight_label"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp" />
 
                         <TextView
-                            android:id="@+id/tvTankPercentage"
+                            android:id="@+id/tvTankWeight"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="68%"
+                            android:text="-- kg"
                             android:textColor="#4A90D9"
-                            android:textSize="13sp"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <com.google.android.material.progressindicator.LinearProgressIndicator
-                        android:id="@+id/progressTankLevel"
-                        android:layout_width="match_parent"
-                        android:layout_height="8dp"
-                        android:layout_marginTop="10dp"
-                        android:progress="68"
-                        app:trackCornerRadius="4dp"
-                        app:indicatorColor="#4A90D9"
-                        app:trackColor="@color/card_medium" />
-
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tvNearEmptyNotice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="6dp">
+                        android:layout_marginTop="8dp"
+                        android:text="@string/near_empty_notice"
+                        android:textColor="@color/warning_yellow"
+                        android:textSize="11sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/empty_label"
-                            android:textColor="@color/text_hint"
-                            android:textSize="11sp" />
+            <!-- Manual Valve Control -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardBackgroundColor="@color/card_medium"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="14dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_valve"
+                        app:tint="@color/text_primary" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="12dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/full_label"
-                            android:textColor="@color/text_hint"
-                            android:textSize="11sp" />
+                            android:text="Manual valve shutoff"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Close the gas supply manually, independent of sensor readings."
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp" />
                     </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchManualValve"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

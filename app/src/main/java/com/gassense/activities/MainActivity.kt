@@ -1,6 +1,7 @@
 package com.gassense.activities
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -12,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.gassense.R
@@ -35,6 +37,21 @@ class MainActivity : AppCompatActivity() {
     // survives bottom-nav tab switches instead of resetting with each Fragment's
     // view (which is what caused the popup to only ever appear on Dashboard).
     private var lastDialogHazardLevel = "SAFE"
+
+    // Once the WARNING sheet has been dismissed for the current escalation episode, it
+    // won't reopen until the hazard genuinely clears back to SAFE (a new episode) —
+    // prevents it from spuriously popping back up on a brief WARNING boundary flicker
+    // shortly after the user dismissed it. CRITICAL's own re-fire behavior is untouched.
+    private var warningDialogDismissedForEpisode = false
+
+    // CRITICAL is a live emergency, not a one-time notice — it keeps re-showing every
+    // CRITICAL_DIALOG_REPEAT_MS for as long as the reading stays CRITICAL, even after
+    // the user has acknowledged it once, instead of going silent for the rest of the
+    // episode.
+    private var lastCriticalDialogShownAtMs = 0L
+    private val CRITICAL_DIALOG_REPEAT_MS = 30_000L
+
+    private var currentDeviceId = "DEV-TEST-0001"
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -67,6 +84,7 @@ class MainActivity : AppCompatActivity() {
                     binding.bottomNav.menu.findItem(R.id.adminFragment)?.isVisible = isAdmin
 
                     val deviceId = profile?.deviceId ?: "DEV-TEST-0001"
+                    currentDeviceId = deviceId
                     sensorViewModel.startListening(deviceId)
                 }
             }
@@ -82,35 +100,57 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            val hideNav = setOf(
-                R.id.deviceManagementFragment,
-                R.id.addDeviceFragment,
-                R.id.qrScannerMainFragment
-            )
-            binding.bottomNav.visibility =
-                if (destination.id in hideNav) View.GONE else View.VISIBLE
-        }
-
         askNotificationPermission()
 
-        // Handle deep link from notification
-        if (intent.getStringExtra("navigate_to") == "alerts") {
+        handleNotificationNavigation(intent, navController)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.mainNavHostFragment) as? NavHostFragment ?: return
+        handleNotificationNavigation(intent, navHostFragment.navController)
+    }
+
+    private fun handleNotificationNavigation(intent: Intent?, navController: NavController) {
+        if (
+            intent?.getStringExtra("navigate_to") == "alerts" &&
+            navController.currentDestination?.id != R.id.alertsFragment
+        ) {
             navController.navigate(R.id.alertsFragment)
         }
     }
 
     private fun checkHazardEscalation(data: LiveSensorData) {
         val isStale = data.timestamp > 0 && (System.currentTimeMillis() - data.timestamp) > 60_000
+        android.util.Log.d("GasSenseDebug", "checkHazardEscalation: hazardLevel=${data.hazardLevel} lastDialogHazardLevel=$lastDialogHazardLevel timestamp=${data.timestamp} now=${System.currentTimeMillis()} isStale=$isStale")
         if (data.timestamp == 0L || isStale) {
+            android.util.Log.d("GasSenseDebug", "checkHazardEscalation: SKIPPED (stale/no timestamp)")
             lastDialogHazardLevel = "SAFE"
+            warningDialogDismissedForEpisode = false
             return
         }
 
-        if (data.hazardLevel != lastDialogHazardLevel &&
-            (data.hazardLevel == "WARNING" || data.hazardLevel == "CRITICAL")
-        ) {
+        if (data.hazardLevel == "SAFE") {
+            // Hazard has genuinely cleared — re-arm the WARNING sheet for the next episode.
+            warningDialogDismissedForEpisode = false
+        }
+
+        val shouldShowWarning = data.hazardLevel == "WARNING" &&
+            data.hazardLevel != lastDialogHazardLevel &&
+            !warningDialogDismissedForEpisode
+
+        val now = System.currentTimeMillis()
+        val enteredCritical = data.hazardLevel == "CRITICAL" && data.hazardLevel != lastDialogHazardLevel
+        val criticalStillOngoing = data.hazardLevel == "CRITICAL" &&
+            (now - lastCriticalDialogShownAtMs) >= CRITICAL_DIALOG_REPEAT_MS
+        val shouldShowCritical = enteredCritical || criticalStillOngoing
+        android.util.Log.d("GasSenseDebug", "checkHazardEscalation: enteredCritical=$enteredCritical criticalStillOngoing=$criticalStillOngoing shouldShowWarning=$shouldShowWarning shouldShowCritical=$shouldShowCritical")
+
+        if (shouldShowWarning || shouldShowCritical) {
             showHazardDialog(isWarning = data.hazardLevel == "WARNING", data)
+            if (data.hazardLevel == "CRITICAL") lastCriticalDialogShownAtMs = now
         }
         lastDialogHazardLevel = data.hazardLevel
     }
@@ -135,13 +175,18 @@ class MainActivity : AppCompatActivity() {
         sheetView.findViewById<android.widget.TextView>(R.id.tvHumidityReading)?.text =
             String.format(Locale.getDefault(), "%.0f %%", data.humidityPct)
 
-        val dismissIds = if (isWarning) {
-            listOf(R.id.btnDismiss, R.id.btnViewDetails)
+        if (isWarning) {
+            listOf(R.id.btnDismiss, R.id.btnViewDetails).forEach { id ->
+                sheetView.findViewById<View>(id)?.setOnClickListener {
+                    warningDialogDismissedForEpisode = true
+                    dialog.dismiss()
+                }
+            }
         } else {
-            listOf(R.id.btnAcknowledge, R.id.btnViewDetails)
-        }
-        dismissIds.forEach { id ->
-            sheetView.findViewById<View>(id)?.setOnClickListener { dialog.dismiss() }
+            sheetView.findViewById<View>(R.id.btnAcknowledge)?.setOnClickListener {
+                sensorViewModel.acknowledgeCritical(currentDeviceId)
+                dialog.dismiss()
+            }
         }
 
         dialog.show()

@@ -10,10 +10,12 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.gassense.R
 import com.gassense.databinding.FragmentHistoryBinding
 import com.gassense.viewmodels.HistoryRecord
 import com.gassense.viewmodels.SensorViewModel
 import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.ValueFormatter
 import kotlinx.coroutines.launch
@@ -26,6 +28,22 @@ class HistoryFragment : Fragment() {
     private val binding get() = _binding!!
     private val sensorViewModel: SensorViewModel by activityViewModels()
 
+    private enum class Period(val label: String, val windowMillis: Long, val dateFormat: String) {
+        DAILY("Daily", 24L * 60 * 60 * 1000, "HH:mm"),
+        WEEKLY("Weekly", 7L * 24 * 60 * 60 * 1000, "MMM d"),
+        MONTHLY("Monthly", 30L * 24 * 60 * 60 * 1000, "MMM d"),
+        QUARTERLY("Quarterly", 90L * 24 * 60 * 60 * 1000, "MMM d"),
+        YEARLY("Yearly", 365L * 24 * 60 * 60 * 1000, "MMM yyyy")
+    }
+
+    // Chip default-checked in the layout is Weekly — keep this in sync with that.
+    private var selectedPeriod = Period.WEEKLY
+
+    // Full set most recently pushed by Firebase (up to the last 500 raw snapshots the
+    // firmware has sent) — re-filtered locally whenever the user changes the period chip,
+    // so switching chips doesn't need to wait on a new network push.
+    private var allRecords: List<HistoryRecord> = emptyList()
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -36,18 +54,14 @@ class HistoryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupChart()
+        setupPeriodFilter()
         showPlaceholders()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 sensorViewModel.historyData.collect { records ->
-                    if (records.isNotEmpty()) {
-                        binding.lineChart.visibility = View.VISIBLE
-                        updateUI(records)
-                    } else {
-                        binding.lineChart.visibility = View.GONE
-                        showPlaceholders()
-                    }
+                    allRecords = records
+                    refresh()
                 }
             }
         }
@@ -61,7 +75,48 @@ class HistoryFragment : Fragment() {
         }
     }
 
-    private fun showPlaceholders() {
+    private fun setupPeriodFilter() {
+        binding.chipGroupTimePeriod.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            selectedPeriod = when (checkedId) {
+                R.id.chipDaily -> Period.DAILY
+                R.id.chipWeekly -> Period.WEEKLY
+                R.id.chipMonthly -> Period.MONTHLY
+                R.id.chipQuarterly -> Period.QUARTERLY
+                R.id.chipYearly -> Period.YEARLY
+                else -> selectedPeriod
+            }
+            refresh()
+        }
+    }
+
+    // Re-filters the cached record set down to the selected period and redraws
+    // everything. Called both when a new Firebase snapshot arrives and when the user
+    // taps a different time-period chip, so the two stay in sync with each other.
+    private fun refresh() {
+        if (allRecords.isEmpty()) {
+            binding.lineChart.visibility = View.GONE
+            showPlaceholders(hasAnyData = false)
+            return
+        }
+
+        val cutoff = System.currentTimeMillis() - selectedPeriod.windowMillis
+        val filtered = allRecords.filter { it.timestamp >= cutoff }.sortedBy { it.timestamp }
+
+        // The firmware only retains the last ~500 raw snapshots (a few hours), so a
+        // Monthly/Quarterly/Yearly selection can legitimately have too little data to
+        // plot yet — show that honestly instead of drawing a misleading near-empty chart.
+        if (filtered.size < 2) {
+            binding.lineChart.visibility = View.GONE
+            showPlaceholders(hasAnyData = true)
+            return
+        }
+
+        binding.lineChart.visibility = View.VISIBLE
+        updateUI(filtered)
+    }
+
+    private fun showPlaceholders(hasAnyData: Boolean = false) {
         binding.tvGasHighest.text = "---"
         binding.tvGasLowest.text = "---"
         binding.tvGasAverage.text = "---"
@@ -69,8 +124,12 @@ class HistoryFragment : Fragment() {
         binding.tvPressurePeak.text = "---"
         binding.tvPressureMin.text = "---"
         binding.tvPressureAvg.text = "---"
-        
-        binding.tvPressureSummaryTitle.text = "History (Awaiting Data)"
+
+        binding.tvPressureSummaryTitle.text = if (hasAnyData) {
+            "Not enough data yet for ${selectedPeriod.label} — try a shorter period"
+        } else {
+            "History (Awaiting Data)"
+        }
     }
 
     private fun setupChart() {
@@ -93,51 +152,74 @@ class HistoryFragment : Fragment() {
                 setDrawGridLines(false)
                 textColor = Color.parseColor("#94A3B8")
                 textSize = 9f
-                valueFormatter = object : ValueFormatter() {
-                    private val mFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                    override fun getFormattedValue(value: Float): String {
-                        return mFormat.format(Date(value.toLong()))
-                    }
-                }
+                setLabelCount(5, true)
             }
+            // Gas (%LEL) on the left, Pressure (PSI) on its own right-hand axis — these
+            // two units have very different natural ranges, so sharing one axis (the
+            // previous behavior) squashed whichever series had the smaller range flat
+            // against the bottom. Axis label colors match each line's color so it's
+            // clear at a glance which axis belongs to which trend.
             axisLeft.apply {
                 setDrawGridLines(true)
                 gridColor = Color.parseColor("#1E3A5F")
-                textColor = Color.parseColor("#94A3B8")
+                textColor = Color.parseColor("#60A5FA")
                 textSize = 10f
                 axisMinimum = 0f
             }
-            axisRight.isEnabled = false
+            axisRight.apply {
+                isEnabled = true
+                setDrawGridLines(false)
+                textColor = Color.parseColor("#A78BFA")
+                textSize = 10f
+                axisMinimum = 0f
+            }
         }
     }
 
     private fun updateUI(records: List<HistoryRecord>) {
-        val gasEntries = records.map { Entry(it.timestamp.toFloat(), it.gasPpm) }
+        // %LEL (roughly 0-100), not raw gasPpm (0-20000+) — matches the "Gas %LEL"
+        // legend below the chart (the old code plotted gasPpm despite that label) and
+        // keeps the gas line on a scale actually comparable to the pressure line.
+        val gasEntries = records.map { Entry(it.timestamp.toFloat(), it.lelPercent) }
         val pressureEntries = records.map { Entry(it.timestamp.toFloat(), it.pressurePsi) }
 
+        applyXAxisFormat()
         updateChart(gasEntries, pressureEntries)
         updateStats(records)
     }
 
+    private fun applyXAxisFormat() {
+        val formatter = SimpleDateFormat(selectedPeriod.dateFormat, Locale.getDefault()).apply {
+            timeZone = com.gassense.models.DEVICE_TIME_ZONE
+        }
+        binding.lineChart.xAxis.valueFormatter = object : ValueFormatter() {
+            override fun getFormattedValue(value: Float): String {
+                return formatter.format(Date(value.toLong()))
+            }
+        }
+    }
+
     private fun updateChart(gasEntries: List<Entry>, pressureEntries: List<Entry>) {
-        val gasDataSet = LineDataSet(gasEntries, "Gas PPM").apply {
+        // LINEAR, not the previous CUBIC_BEZIER — a smoothed curve can overshoot past
+        // the actual recorded min/max between points, which is misleading on a safety
+        // trend chart. Per-point circles are also dropped (can be hundreds of points)
+        // so the line itself reads as a clean trend instead of a dotted smear.
+        val gasDataSet = LineDataSet(gasEntries, "Gas %LEL").apply {
+            axisDependency = YAxis.AxisDependency.LEFT
             color = Color.parseColor("#60A5FA")
-            setCircleColor(Color.parseColor("#60A5FA"))
-            lineWidth = 2f
-            circleRadius = 3f
-            setDrawCircleHole(false)
+            setDrawCircles(false)
             setDrawValues(false)
-            mode = LineDataSet.Mode.CUBIC_BEZIER
+            lineWidth = 2f
+            mode = LineDataSet.Mode.LINEAR
         }
 
         val pressureDataSet = LineDataSet(pressureEntries, "Pressure PSI").apply {
+            axisDependency = YAxis.AxisDependency.RIGHT
             color = Color.parseColor("#A78BFA")
-            setCircleColor(Color.parseColor("#A78BFA"))
-            lineWidth = 2f
-            circleRadius = 3f
-            setDrawCircleHole(false)
+            setDrawCircles(false)
             setDrawValues(false)
-            mode = LineDataSet.Mode.CUBIC_BEZIER
+            lineWidth = 2f
+            mode = LineDataSet.Mode.LINEAR
         }
 
         binding.lineChart.data = LineData(gasDataSet, pressureDataSet)
@@ -145,23 +227,23 @@ class HistoryFragment : Fragment() {
     }
 
     private fun updateStats(records: List<HistoryRecord>) {
-        val maxGas = records.maxOf { it.gasPpm }
-        val minGas = records.minOf { it.gasPpm }
-        val avgGas = records.map { it.gasPpm }.average()
+        val maxGas = records.maxOf { it.lelPercent }
+        val minGas = records.minOf { it.lelPercent }
+        val avgGas = records.map { it.lelPercent }.average()
 
         val maxPress = records.maxOf { it.pressurePsi }
         val minPress = records.minOf { it.pressurePsi }
         val avgPress = records.map { it.pressurePsi }.average()
 
-        binding.tvGasHighest.text = String.format("%.0f PPM", maxGas)
-        binding.tvGasLowest.text = String.format("%.0f PPM", minGas)
-        binding.tvGasAverage.text = String.format("%.0f PPM", avgGas)
+        binding.tvGasHighest.text = String.format(Locale.getDefault(), "%.1f%%LEL", maxGas)
+        binding.tvGasLowest.text = String.format(Locale.getDefault(), "%.1f%%LEL", minGas)
+        binding.tvGasAverage.text = String.format(Locale.getDefault(), "%.1f%%LEL", avgGas)
 
-        binding.tvPressurePeak.text = String.format("%.1f PSI", maxPress)
-        binding.tvPressureMin.text = String.format("%.1f PSI", minPress)
-        binding.tvPressureAvg.text = String.format("%.1f PSI", avgPress)
-        
-        binding.tvPressureSummaryTitle.text = "Real-time Pressure History"
+        binding.tvPressurePeak.text = String.format(Locale.getDefault(), "%.1f PSI", maxPress)
+        binding.tvPressureMin.text = String.format(Locale.getDefault(), "%.1f PSI", minPress)
+        binding.tvPressureAvg.text = String.format(Locale.getDefault(), "%.1f PSI", avgPress)
+
+        binding.tvPressureSummaryTitle.text = "Pressure Summary (${selectedPeriod.label})"
     }
 
     private fun updateTipsUI(tips: List<String>) {
@@ -170,12 +252,13 @@ class HistoryFragment : Fragment() {
         } else {
             binding.cardUsageInsights.visibility = View.VISIBLE
             binding.tvInsightText1.text = tips.getOrNull(0) ?: ""
-            
+
             binding.tvInsightText2.apply {
                 text = tips.getOrNull(1) ?: ""
                 visibility = if (tips.size > 1) View.VISIBLE else View.GONE
+
             }
-            
+
             binding.tvInsightText3.apply {
                 text = tips.getOrNull(2) ?: ""
                 visibility = if (tips.size > 2) View.VISIBLE else View.GONE

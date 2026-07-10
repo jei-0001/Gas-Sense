@@ -41,13 +41,6 @@ class AuthViewModel : ViewModel() {
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
-    private val _scannedDeviceId = MutableStateFlow<String?>(null)
-    val scannedDeviceId: StateFlow<String?> = _scannedDeviceId.asStateFlow()
-
-    fun setScannedDeviceId(id: String) {
-        _scannedDeviceId.value = id
-    }
-
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading

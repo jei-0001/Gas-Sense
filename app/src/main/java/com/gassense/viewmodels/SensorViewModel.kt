@@ -4,8 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.IgnoreExtraProperties
+import com.google.firebase.database.Query
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +19,8 @@ import kotlinx.coroutines.launch
 
 import com.gassense.models.AlertItem
 import com.gassense.models.AppThresholds
+import com.gassense.utils.NetworkStatus
+import com.gassense.utils.SafetyNotificationService
 import com.gassense.utils.SmsService
 import com.gassense.utils.ThresholdManager
 import java.util.Locale
@@ -28,8 +32,16 @@ data class LiveSensorData(
     val pressurePsi: Float = 0f,
     val tempC: Float = 0f,
     val humidityPct: Float = 0f,
+    val weightKg: Float = 0f,
     val hazardLevel: String = "SAFE",
     val autoShutoff: Boolean = false,
+    val valveOpen: Boolean = false,
+    val valveOverride: String = "auto",
+    val hazardLatched: Boolean = false,
+    // Pressure-corroborated near-empty check (weight stays the primary quantity
+    // signal — see DashboardFragment for how this is displayed alongside it).
+    val expectedPressurePsi: Float = 0f,
+    val nearEmptyCorroborated: Boolean = false,
     val timestamp: Long = 0L
 )
 
@@ -55,13 +67,23 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
 
     private var lastHazardLevel = "SAFE"
     private var lastSmsSentAt = 0L
+    private var hasLoadedInitialAlerts = false
+    private var lastNotifiedAlertTimestamp = 0L
     private var currentDeviceId = ""
+    private var latestRef: DatabaseReference? = null
+    private var historyRef: Query? = null
+    private var alertsRef: Query? = null
+    private var cloudConnectionRef: DatabaseReference? = null
     private var latestListener: ValueEventListener? = null
     private var historyListener: ValueEventListener? = null
     private var alertsListener: ValueEventListener? = null
+    private var cloudConnectionListener: ValueEventListener? = null
 
     private val _sensorData = MutableStateFlow(LiveSensorData())
     val sensorData: StateFlow<LiveSensorData> = _sensorData.asStateFlow()
+
+    private val _isCloudConnected = MutableStateFlow(false)
+    val isCloudConnected: StateFlow<Boolean> = _isCloudConnected.asStateFlow()
 
     private val _historyData = MutableStateFlow<List<HistoryRecord>>(emptyList())
     val historyData: StateFlow<List<HistoryRecord>> = _historyData.asStateFlow()
@@ -73,24 +95,31 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
     val alertsData: StateFlow<List<AlertItem>> = _alertsData.asStateFlow()
 
     fun startListening(deviceId: String) {
+        if (currentDeviceId == deviceId && latestListener != null) return
+
         stopListening()
         currentDeviceId = deviceId
+        hasLoadedInitialAlerts = false
+        lastNotifiedAlertTimestamp = 0L
+        startCloudConnectionListener()
 
         // 1. Listen for latest data
-        val latestRef = database.getReference("devices/$deviceId/latest")
+        latestRef = database.getReference("devices/$deviceId/latest")
         latestListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                android.util.Log.d("GasSenseDebug", "raw pressurePsi in snapshot = ${snapshot.child("pressurePsi").value}")
                 snapshot.getValue(LiveSensorData::class.java)?.let {
+                    android.util.Log.d("GasSenseDebug", "parsed LiveSensorData.pressurePsi = ${it.pressurePsi}, timestamp = ${it.timestamp}")
                     _sensorData.value = it
                     checkAndSendCriticalSms(it.hazardLevel)
                 }
             }
             override fun onCancelled(error: DatabaseError) {}
         }
-        latestRef.addValueEventListener(latestListener!!)
+        latestRef?.addValueEventListener(latestListener!!)
 
         // 2. Listen for history — firmware logs ~1 snapshot/min, so 500 records is ~8hrs
-        val historyRef = database.getReference("devices/$deviceId/history").limitToLast(500)
+        historyRef = database.getReference("devices/$deviceId/history").limitToLast(500)
         historyListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val records = mutableListOf<HistoryRecord>()
@@ -102,36 +131,106 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
             }
             override fun onCancelled(error: DatabaseError) {}
         }
-        historyRef.addValueEventListener(historyListener!!)
+        historyRef?.addValueEventListener(historyListener!!)
 
         // 3. Listen for alerts (last 20 alerts)
-        val alertsRef = database.getReference("devices/$deviceId/alerts").limitToLast(20)
+        alertsRef = database.getReference("devices/$deviceId/alerts").limitToLast(20)
         alertsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val alerts = mutableListOf<AlertItem>()
                 for (child in snapshot.children) {
                     child.getValue(AlertItem::class.java)?.let { alerts.add(it) }
                 }
+                val orderedAlerts = alerts.sortedBy { it.timestampMs }
                 // Reverse to show newest first
-                _alertsData.value = alerts.reversed()
+                _alertsData.value = orderedAlerts.reversed()
+                handleAlertNotifications(orderedAlerts)
             }
             override fun onCancelled(error: DatabaseError) {}
         }
-        alertsRef.addValueEventListener(alertsListener!!)
+        alertsRef?.addValueEventListener(alertsListener!!)
+    }
+
+    // Firmware polls this node every ~3s and applies it in classifyHazard() — a
+    // CRITICAL gas reading always wins over this regardless of what's written here.
+    fun setValveOverride(deviceId: String, closed: Boolean) {
+        database.getReference("devices/$deviceId/commands/valveOverride")
+            .setValue(if (closed) "closed" else "auto")
+    }
+
+    // Firmware clears its hazardLatched flag (and only then re-evaluates whether
+    // the valve can reopen) once this lands — it does not open the valve directly.
+    fun acknowledgeCritical(deviceId: String) {
+        database.getReference("devices/$deviceId/commands/ackCritical").setValue(true)
+    }
+
+    private fun handleAlertNotifications(alerts: List<AlertItem>) {
+        val newestTimestamp = alerts.maxOfOrNull { it.timestampMs } ?: 0L
+        if (!hasLoadedInitialAlerts) {
+            lastNotifiedAlertTimestamp = newestTimestamp
+            hasLoadedInitialAlerts = true
+            return
+        }
+
+        alerts
+            .filter { it.timestampMs > lastNotifiedAlertTimestamp }
+            .filter { it.hazardState.uppercase() == "WARNING" || it.hazardState.uppercase() == "CRITICAL" }
+            .forEach { alert ->
+                if (canShowAppNotification()) {
+                    SafetyNotificationService.showAlertNotification(getApplication(), alert)
+                }
+            }
+
+        if (newestTimestamp > lastNotifiedAlertTimestamp) {
+            lastNotifiedAlertTimestamp = newestTimestamp
+        }
+    }
+
+    private fun canShowAppNotification(): Boolean {
+        val context: Application = getApplication()
+        return ThresholdManager.isPushNotificationsEnabled(context) &&
+            _isCloudConnected.value &&
+            NetworkStatus.isWifiConnected(context)
+    }
+
+    private fun startCloudConnectionListener() {
+        cloudConnectionRef = database.getReference(".info/connected")
+        cloudConnectionListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                _isCloudConnected.value = snapshot.getValue(Boolean::class.java) == true
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                _isCloudConnected.value = false
+            }
+        }
+        cloudConnectionRef?.addValueEventListener(cloudConnectionListener!!)
     }
 
     fun stopListening() {
-        latestListener?.let { database.reference.removeEventListener(it) }
-        historyListener?.let { database.reference.removeEventListener(it) }
-        alertsListener?.let { database.reference.removeEventListener(it) }
+        latestListener?.let { latestRef?.removeEventListener(it) }
+        historyListener?.let { historyRef?.removeEventListener(it) }
+        alertsListener?.let { alertsRef?.removeEventListener(it) }
+        cloudConnectionListener?.let { cloudConnectionRef?.removeEventListener(it) }
+        latestRef = null
+        historyRef = null
+        alertsRef = null
+        cloudConnectionRef = null
         latestListener = null
         historyListener = null
         alertsListener = null
+        cloudConnectionListener = null
+        _isCloudConnected.value = false
         lastHazardLevel = "SAFE"
     }
 
     private fun checkAndSendCriticalSms(hazardLevel: String) {
         if (hazardLevel == "CRITICAL" && lastHazardLevel != "CRITICAL") {
+            if (!ThresholdManager.isSmsNotificationsEnabled(getApplication())) {
+                lastHazardLevel = hazardLevel
+                return
+            }
+
             val now = System.currentTimeMillis()
             val cooldownMs = 3 * 60 * 1000L
             if (now - lastSmsSentAt > cooldownMs) {

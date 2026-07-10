@@ -12,6 +12,7 @@ object ThresholdManager {
     // from "Reset to Developer Defaults") clears the thresholds file entirely, which
     // was silently wiping the saved SMS number as an unintended side effect.
     private const val SMS_PREFS_NAME = "gassense_sms"
+    private const val NOTIFICATION_PREFS_NAME = "gassense_notifications"
     private const val KEY_GAS_WARN = "gas_warning"
     private const val KEY_GAS_CRIT = "gas_critical"
     private const val KEY_PRESS_WARN = "pressure_warning"
@@ -21,12 +22,17 @@ object ThresholdManager {
     private const val KEY_HUM_WARN = "humidity_warning"
     private const val KEY_HUM_CRIT = "humidity_critical"
     private const val KEY_SMS_NUMBER = "sms_recipient_number"
+    private const val KEY_SMS_NOTIFICATIONS_ENABLED = "sms_notifications_enabled"
+    private const val KEY_PUSH_NOTIFICATIONS_ENABLED = "push_notifications_enabled"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun smsPrefs(context: Context): SharedPreferences =
         context.getSharedPreferences(SMS_PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun notificationPrefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(NOTIFICATION_PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(context: Context): AppThresholds {
         val p = prefs(context)
@@ -71,11 +77,37 @@ object ThresholdManager {
     }
 
     fun saveSmsNumber(context: Context, number: String) {
-        smsPrefs(context).edit().putString(KEY_SMS_NUMBER, number).apply()
+        smsPrefs(context).edit().apply {
+            putString(KEY_SMS_NUMBER, number)
+            if (!smsPrefs(context).contains(KEY_SMS_NOTIFICATIONS_ENABLED)) {
+                putBoolean(KEY_SMS_NOTIFICATIONS_ENABLED, true)
+            }
+            apply()
+        }
     }
 
     fun getSmsNumber(context: Context): String {
         return smsPrefs(context).getString(KEY_SMS_NUMBER, "") ?: ""
+    }
+
+    fun setSmsNotificationsEnabled(context: Context, enabled: Boolean) {
+        smsPrefs(context).edit().putBoolean(KEY_SMS_NOTIFICATIONS_ENABLED, enabled).apply()
+    }
+
+    fun isSmsNotificationsEnabled(context: Context): Boolean {
+        val p = smsPrefs(context)
+        return p.getBoolean(
+            KEY_SMS_NOTIFICATIONS_ENABLED,
+            p.getString(KEY_SMS_NUMBER, "").orEmpty().isNotBlank()
+        )
+    }
+
+    fun setPushNotificationsEnabled(context: Context, enabled: Boolean) {
+        notificationPrefs(context).edit().putBoolean(KEY_PUSH_NOTIFICATIONS_ENABLED, enabled).apply()
+    }
+
+    fun isPushNotificationsEnabled(context: Context): Boolean {
+        return notificationPrefs(context).getBoolean(KEY_PUSH_NOTIFICATIONS_ENABLED, true)
     }
 
     // Only clears threshold values — the SMS number lives in its own prefs file
