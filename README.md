@@ -1,27 +1,48 @@
-# Gas-Sense
-Gas Sense: IoT Propane Monitoring System, Threshold-based, Pressure Rate-of-Change, &amp; Sensor Fusion Analytics
+# Gas Sense
 
-Gas Sense is an IoT-based residential safety system designed to preemptively detect propane leaks before gas concentrations reach hazardous levels. By combining gas sensing with physical pressure monitoring, the system utilizes pressure rate-of-change analytics to identify micro-leaks early.
+**An IoT-based LPG monitoring system using gas thresholds, pressure rate-of-change, and sensor fusion.**
 
-Built with safety and technical reliability in mind, Gas Sense features real-time cloud data logging, instant hazard alerts via a companion mobile app, and an automated emergency shutoff mechanism. The system is evaluated against ISO 25010 standards to ensure high performance and usability.
+Gas Sense is a prototype residential and small-commercial safety system designed to detect possible propane/LPG leaks and alert users. It combines gas concentration readings with pressure and environmental measurements to classify hazards, track tank usage, and trigger a local response when a critical condition is detected.
 
+## Features
 
-🚀 Key Features
-  
-- Multi-Sensor Fusion: Integrates chemical sensing and physical pressure monitoring for high-accuracy hazard detection.
+- **Multi-sensor monitoring:** Combines gas, pressure, temperature, humidity, and tank-weight measurements.
+- **Threshold and trend detection:** Classifies gas concentration and watches for rapid pressure drops that may indicate a leak.
+- **Sensor fusion:** Uses multiple readings to cross-check hazard states and help reduce false alarms.
+- **Automatic shutoff:** Activates a solenoid valve when the system classifies a condition as critical.
+- **Mobile and SMS alerts:** Sends hazard notifications and presents live sensor status.
+- **Tank and usage tracking:** Estimates remaining capacity and records usage history.
 
-- Automated Shutoff Valve: Instantly cuts off the gas supply upon detecting a critical hazard.
-  
-- Real-Time Cloud Logging: Seamlessly tracks essential metrics, including PPM levels and system latency.
-  
-- Mobile Hazard Alerts: Companion mobile application for real-time monitoring and push notifications.
+## Hardware
 
+The prototype materials describe the following components:
 
-🛠️ Hardware & Tech Stack
-- Microcontroller: ESP32
-  
-- Sensors: MQ-6 (Gas/Chemical) & MPX5700 (Pressure)
-  
-- Cloud Integration: Real-time data logging
-  
-- Mobile Application: Hazard alerts and remote monitoring
+- ESP32 microcontroller
+- MQ-6 gas sensor
+- Pressure transducer
+- Load cell with HX711 amplifier
+- DHT22 temperature and humidity sensor
+- Solenoid shutoff valve
+- LCD display
+
+The exact pressure transducer model and wiring may vary by prototype revision. Refer to the applicable wiring diagram and hardware notes before assembling the device.
+
+## Hazard classification
+
+The project presentation describes these gas concentration bands:
+
+| State | Gas concentration | Response |
+| --- | --- | --- |
+| Safe | Below 2,100 PPM | Continue monitoring |
+| Warning | 2,100–5,250 PPM | Send an alert |
+| Critical | Above 5,250 PPM, or a rapid pressure drop | Alert and activate the shutoff valve |
+
+The thresholds are prototype configuration values, not a substitute for certified gas-safety equipment or professional installation. Validate sensor calibration and local safety requirements before any real-world use.
+
+## Evaluation
+
+The reported prototype evaluation lists 92% detection accuracy, 0.97 seconds for gas detection, 1.47 seconds for valve shutoff, and 9.48 seconds for SMS notification. These are project-reported results; testing conditions and deployment performance may differ.
+
+## Project status
+
+Gas Sense is a research prototype. The project materials identify offline alert redundancy, additional gas-specific sensors, iOS support, and real-world deployment validation as areas for future work.
